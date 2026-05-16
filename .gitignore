@@ -22,3 +22,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+#Dataset
+Modèle_Ocarina/dataset/
+Ressources/
