@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HearMyHands</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Arrière-plan animé global -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+
+    <!-- Barre de Navigation Globale -->
+    <!-- Barre de Navigation Globale -->
+    <nav class="navbar">
+        <a href="{{ url_for('home') }}" class="nav-brand">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="nav-logo">
+            <span>HearMy<span class="highlight">Hands</span></span>
+        </a>
+        
+        <!-- Bouton Menu Mobile (Hamburger) -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+
+        <div class="nav-links" id="navLinks">
+            <a href="{{ url_for('translate') }}"><i class="fa-solid fa-camera"></i> Traduction</a>
+            <a href="{{ url_for('learn') }}"><i class="fa-solid fa-graduation-cap"></i> Apprendre</a>
+            <a href="{{ url_for('home') }}#about"><i class="fa-solid fa-users"></i> Qui Sommes-Nous</a>
+        </div>
+    </nav>
+
+    <!-- Contenu Spécifique aux pages -->
+    <div class="page-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

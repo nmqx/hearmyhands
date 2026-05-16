@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Section Héro (Haut de page) -->
+<section class="hero-section">
+    <div class="hero-content reveal">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo HearMyHands" class="hero-logo">
+        <h1 class="hero-title">Brisons le silence,<br>avec <span>HearMyHands</span>.</h1>
+        <p class="hero-subtitle">Traduction en temps réel de la Langue des Signes Française propulsée par l'Intelligence Artificielle.</p>
+        <a href="{{ url_for('translate') }}" class="btn primary hero-btn">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Traduire la LSF
+        </a>
+    </div>
+    <a href="#about" class="scroll-down-indicator">
+        <i class="fa-solid fa-chevron-down"></i>
+    </a>
+</section>
+
+<!-- Section Qui Sommes-Nous -->
+<section id="about" class="about-section">
+    <div class="glass-card reveal">
+        <h2>Qui Sommes-Nous ?</h2>
+        <div class="about-grid">
+            <div class="about-text">
+                <p><strong>HearMyHands</strong> est un projet étudiant (PeiP 2A - 2025/2026) né d'une volonté forte : rendre la communication accessible à tous. Grâce à la vision par ordinateur, nous transformons les gestes en texte en temps réel.</p>
+                <p>Notre équipe travaille avec passion sur les réseaux de neurones pour créer un pont entre les personnes sourdes, malentendantes et entendantes.</p>
+            </div>
+            <div class="about-stats">
+                <div class="stat-item">
+                    <i class="fa-solid fa-code"></i>
+                    <span>Projet 2A</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fa-solid fa-brain"></i>
+                    <span>IA Intégrée</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fa-solid fa-hands-asl-interpreting"></i>
+                    <span>Temps Réel</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
