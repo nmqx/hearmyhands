@@ -67,23 +67,38 @@ placer dans `HmH/heatnoks/checkpoints/`.
 
 ## Run
 
-Deux processus :
+Un seul processus (par défaut, modèle chargé en in-process pour la perf) :
 
 ```bash
-python HmH/api.py            # API modèle sur :5001
-python hearmyhands/app.py    # webapp sur :5000
+python hearmyhands/app.py    # webapp + modèle sur :5000
 ```
 
 Ouvrir <http://localhost:5000/translate>, autoriser la caméra, et cliquer sur
 *Lancer Traduction*.
 
+### Mode service séparé (optionnel)
+
+Si tu veux faire tourner le modèle sur une autre machine, lance les deux
+services et active le backend HTTP :
+
+```bash
+python HmH/api.py                           # API modèle sur :5001
+USE_HTTP_MODEL=1 python hearmyhands/app.py  # webapp sur :5000
+```
+
+`HmH/inference.py` reste l'unique source de vérité pour la logique
+d'inférence — `HmH/api.py` n'est qu'une fine couche Flask par-dessus.
+
 ### Config (variables d'env)
 
-| Variable        | Défaut                                |
-| --------------- | ------------------------------------- |
-| `MODEL_API_URL` | `http://127.0.0.1:5001/model_predict` |
-| `MODEL_TIMEOUT` | `5`                                   |
-| `PORT`          | `5000` (web) / `5001` (modèle)        |
+| Variable          | Défaut                                |
+| ----------------- | ------------------------------------- |
+| `USE_HTTP_MODEL`  | `0` (in-process)                      |
+| `MODEL_API_URL`   | `http://127.0.0.1:5001/model_predict` |
+| `SIGN_API_URL`    | `http://127.0.0.1:5001/sign_predict`  |
+| `MODEL_TIMEOUT`   | `5`                                   |
+| `PORT`            | `5000` (web) / `5001` (modèle)        |
+| `USE_AMP`         | `0` (fp16 opt-in — souvent plus lent) |
 
 ## Inférence standalone
 
