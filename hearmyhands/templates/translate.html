@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-wrapper reveal">
+    <div class="status-indicator" style="margin-bottom: 15px; width: fit-content; margin-left: auto;">
+        <span class="dot"></span> Système IA prêt
+    </div>
+
+    <div class="glass-card">
+        <!-- Zone Vidéo -->
+        <div class="video-container" style="position: relative;">
+            <div class="video-placeholder">
+                <i class="fa-solid fa-camera"></i>
+                <p>En attente de la caméra...</p>
+            </div>
+            <video id="videoElement" autoplay playsinline></video>
+            <canvas id="skeletonCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; transform: scaleX(-1);"></canvas>
+            
+
+        </div>
+
+        <!-- Zone Résultats -->
+        <div class="output-area">
+            <div class="prediction-box">
+                <span class="label">Lettre détectée</span>
+                <h2 id="currentLetter">-</h2>
+            </div>
+            
+            <div class="word-box">
+                <span class="label">Mot en cours</span>
+                <p id="wordHistory">...</p>
+                <button id="clearBtn" class="icon-btn" title="Effacer"><i class="fa-solid fa-eraser"></i></button>
+            </div>
+        </div>
+
+        <!-- Contrôles -->
+        <div class="controls">
+            <button id="startBtn" class="btn primary">
+                <i class="fa-solid fa-power-off"></i> Activer Caméra
+            </button>
+            <button id="togglePredBtn" class="btn secondary" disabled>
+                <i class="fa-solid fa-play"></i> Lancer Traduction
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+# Web app
+flask>=3.0
+flask-socketio>=5.3
+requests>=2.31
+
+# Model API
+torch>=2.0
+torchvision>=0.15
+Pillow
+numpy
+opencv-python
+mediapipe
+
+# Training / inference scripts (optional)
+matplotlib
+tqdm
