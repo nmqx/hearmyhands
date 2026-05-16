@@ -22,7 +22,7 @@ socketio = SocketIO(
 
 _http = requests.Session()
 _log = logging.getLogger("hmh.web")
-_EMPTY = {"skeleton": None, "hands": []}
+_EMPTY = {"skeleton": None, "hands": [], "letter": None, "confidence": None}
 
 
 @app.route("/")
@@ -61,7 +61,12 @@ def handle_frame(image_bytes):
         return _EMPTY
 
     data = resp.json()
-    return {"skeleton": data.get("keypoints"), "hands": data.get("hands", [])}
+    return {
+        "skeleton":   data.get("keypoints"),
+        "hands":      data.get("hands", []),
+        "letter":     data.get("letter"),
+        "confidence": data.get("confidence"),
+    }
 
 
 if __name__ == "__main__":

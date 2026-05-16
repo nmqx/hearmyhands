@@ -32,17 +32,25 @@ function initTranslate() {
     const skeletonCanvas = document.getElementById('skeletonCanvas');
     const skelCtx        = skeletonCanvas.getContext('2d');
 
-    const startBtn      = document.getElementById('startBtn');
-    const togglePredBtn = document.getElementById('togglePredBtn');
-    const clearBtn      = document.getElementById('clearBtn');
-    const wordHistoryEl = document.getElementById('wordHistory');
-    const statusDot     = document.querySelector('.dot');
+    const startBtn         = document.getElementById('startBtn');
+    const togglePredBtn    = document.getElementById('togglePredBtn');
+    const clearBtn         = document.getElementById('clearBtn');
+    const wordHistoryEl    = document.getElementById('wordHistory');
+    const currentLetterEl  = document.getElementById('currentLetter');
+    const statusDot        = document.querySelector('.dot');
 
     // ── Tuning du transport WebSocket ────────────────────────────────────────
     const SEND_WIDTH       = 480;   // downscale avant envoi (économise la bande passante)
     const JPEG_QUALITY     = 0.7;   // qualité JPEG (0..1)
     const SEND_INTERVAL_MS = 66;    // ~15 fps max
     const ACK_TIMEOUT_MS   = 2000;  // libère l'envoi si le serveur ne répond pas
+
+    // ── Tuning de la reconnaissance de lettres ───────────────────────────────
+    const MIN_LETTER_CONFIDENCE = 0.6;  // sous ce seuil, on ignore la prédiction
+    const STABLE_FRAMES_TO_COMMIT = 10; // n frames identiques avant d'ajouter au mot
+
+    let lastLetter  = null;
+    let stableCount = 0;
 
     // Canvas offscreen réutilisé pour l'encodage
     const encodeCanvas = document.createElement('canvas');
@@ -89,7 +97,11 @@ function initTranslate() {
         }
     });
 
-    clearBtn.addEventListener('click', () => { wordHistoryEl.textContent = '...'; });
+    clearBtn.addEventListener('click', () => {
+        wordHistoryEl.textContent = '...';
+        lastLetter = null;
+        stableCount = 0;
+    });
 
     // ── Envoi d'une frame en binaire ─────────────────────────────────────────
     function sendFrame() {
@@ -131,10 +143,31 @@ function initTranslate() {
         skelCtx.clearRect(0, 0, w, h);
         if (data.skeleton && data.skeleton.length >= 9) drawSkeleton(data.skeleton);
         if (data.hands && data.hands.length)            drawHands(data.hands);
+
+        const conf = data.confidence ?? 0;
+        const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
+        updateLetter(letter);
+    }
+
+    function updateLetter(letter) {
+        if (currentLetterEl) currentLetterEl.textContent = letter ?? '-';
+        if (letter && letter === lastLetter) {
+            stableCount++;
+            if (stableCount === STABLE_FRAMES_TO_COMMIT) {
+                const cur = wordHistoryEl.textContent === '...' ? '' : wordHistoryEl.textContent;
+                wordHistoryEl.textContent = cur + letter;
+            }
+        } else {
+            lastLetter = letter;
+            stableCount = letter ? 1 : 0;
+        }
     }
 
     function clearSkeleton() {
         skelCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+        if (currentLetterEl) currentLetterEl.textContent = '-';
+        lastLetter = null;
+        stableCount = 0;
     }
 
     // ── Dessin du squelette ──────────────────────────────────────────────────
