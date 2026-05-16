@@ -46,7 +46,7 @@ function initTranslate() {
     const SEND_WIDTH       = 480;                  // downscale avant envoi
     const JPEG_QUALITY     = 0.7;
     const SEND_INTERVAL_MS = 1000 / TARGET_FPS;    // ~16 ms (60 fps)
-    const MAX_IN_FLIGHT    = 3;                    // pipeline: max N frames en vol simultanément
+    const MAX_IN_FLIGHT    = 4;                    // pipeline: max N frames en vol simultanément
     const ACK_TIMEOUT_MS   = 2000;                 // libère un slot si le serveur ne répond pas
 
     // ── Tuning de la reconnaissance de lettres ───────────────────────────────
