@@ -140,6 +140,7 @@ function initTranslate() {
             skeletonCanvas.width  = w;
             skeletonCanvas.height = h;
         }
+        alignCanvasWithVideo();
         skelCtx.clearRect(0, 0, w, h);
         if (data.skeleton && data.skeleton.length >= 9) drawSkeleton(data.skeleton);
         if (data.hands && data.hands.length)            drawHands(data.hands);
@@ -148,6 +149,30 @@ function initTranslate() {
         const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
         updateLetter(letter);
     }
+
+    // Le conteneur vidéo est plus large que l'image webcam (object-fit: contain),
+    // donc on positionne le canvas exactement sur la zone vidéo affichée.
+    function alignCanvasWithVideo() {
+        const vw = video.videoWidth, vh = video.videoHeight;
+        const cw = video.clientWidth, ch = video.clientHeight;
+        if (!vw || !vh || !cw || !ch) return;
+        const videoRatio = vw / vh;
+        const boxRatio   = cw / ch;
+        let dispW, dispH, dispX, dispY;
+        if (videoRatio > boxRatio) {
+            dispW = cw;            dispH = cw / videoRatio;
+            dispX = 0;             dispY = (ch - dispH) / 2;
+        } else {
+            dispH = ch;            dispW = ch * videoRatio;
+            dispX = (cw - dispW) / 2; dispY = 0;
+        }
+        skeletonCanvas.style.left   = `${dispX}px`;
+        skeletonCanvas.style.top    = `${dispY}px`;
+        skeletonCanvas.style.width  = `${dispW}px`;
+        skeletonCanvas.style.height = `${dispH}px`;
+    }
+    window.addEventListener('resize', alignCanvasWithVideo);
+    video.addEventListener('loadedmetadata', alignCanvasWithVideo);
 
     function updateLetter(letter) {
         if (currentLetterEl) currentLetterEl.textContent = letter ?? '-';
