@@ -163,9 +163,19 @@ function initTranslate() {
         updateLetter(letter);
     }
 
-    // Le conteneur vidéo est plus large que l'image webcam (object-fit: contain),
-    // donc on positionne le canvas exactement sur la zone vidéo affichée.
+    function syncContainerAspect() {
+        if (videoContainer && video.videoWidth && video.videoHeight) {
+            const want = `${video.videoWidth} / ${video.videoHeight}`;
+            if (videoContainer.style.aspectRatio !== want) {
+                videoContainer.style.aspectRatio = want;
+            }
+        }
+    }
+
+    // Le canvas se cale exactement sur la zone vidéo réellement affichée
+    // (object-fit: contain peut introduire des bandes si jamais l'aspect change).
     function alignCanvasWithVideo() {
+        syncContainerAspect();
         const vw = video.videoWidth, vh = video.videoHeight;
         const cw = video.clientWidth, ch = video.clientHeight;
         if (!vw || !vh || !cw || !ch) return;
@@ -185,12 +195,8 @@ function initTranslate() {
         skeletonCanvas.style.height = `${dispH}px`;
     }
     window.addEventListener('resize', alignCanvasWithVideo);
-    video.addEventListener('loadedmetadata', () => {
-        // Adapte le container à l'aspect réel de la webcam (4:3, 16:9, …)
-        if (videoContainer && video.videoWidth && video.videoHeight) {
-            videoContainer.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
-        }
-        alignCanvasWithVideo();
+    ['loadedmetadata', 'loadeddata', 'playing', 'resize'].forEach(ev => {
+        video.addEventListener(ev, alignCanvasWithVideo);
     });
 
     function updateLetter(letter) {
