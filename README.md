@@ -1,49 +1,19 @@
 # HearMyHands
 
-Real-time sign-language helper: a webcam stream is sent over a WebSocket to a
-Flask web app, which forwards each frame to a local PyTorch model API. The
-model returns body keypoints (custom ResNet-50 + heatmaps) and hand landmarks
-(MediaPipe), drawn back on the page as an overlay skeleton.
+Real-time sign-language helper. A browser sends webcam frames over a WebSocket
+to a small Flask app, which forwards them to a PyTorch model that returns body
+keypoints (custom ResNet-50 + heatmaps) and hand landmarks (MediaPipe). The
+overlay is drawn back on the page.
 
 ```
-Browser  ──(binary JPEG over Socket.IO)──▶  webapp (Flask)
-                                            │
-                                            └─(POST /model_predict)─▶ model API ─▶ JSON keypoints
+Browser ──Socket.IO──▶ webapp ──HTTP──▶ model API ──▶ keypoints + hands
 ```
-
-## What's optimized
-
-The WebSocket transport is the hot path for this app. Recent changes:
-
-- **Binary frames over Socket.IO** instead of base64 data URLs — removes the
-  ~33 % encoding overhead and an extra base64 round-trip on the server.
-- **Client-side downscale to 480 px** wide before JPEG encoding — typical
-  payload drops from ~80 KB to ~12 KB per frame at q=0.7.
-- **Single-roundtrip ack callback** instead of a separate `prediction` event —
-  cleaner state, no race on `isWaiting`.
-- **Persistent `requests.Session`** between the web app and the model API —
-  reuses the TCP connection.
-- **Raw-bytes endpoint** at `/model_predict` (Content-Type `application/octet-stream`)
-  — no JSON / base64 round-trip on the model side.
-- **Frame size cap** (`max_http_buffer_size=2 MB`) on the Socket.IO server to
-  prevent runaway payloads.
 
 ## Layout
 
 ```
-.
-├── hearmyhands/    Flask web app (UI + Socket.IO transport)
-│   ├── app.py
-│   ├── static/
-│   └── templates/
-└── HmH/            Model API + training/inference scripts
-    ├── api.py
-    └── heatnoks/
-        ├── model.py                  (ResNet-50 + heatmap head + spatial softmax)
-        ├── inference_video.py
-        ├── inference_heatnoks.py
-        ├── hand_landmarker.task      (MediaPipe HandLandmarker, included)
-        └── checkpoints/best.pt       (download from Releases, see below)
+hearmyhands/   Flask web app (UI + WebSocket transport)
+HmH/           Model API + training/inference scripts
 ```
 
 ## Setup
@@ -52,53 +22,35 @@ The WebSocket transport is the hot path for this app. Recent changes:
 pip install -r requirements.txt
 ```
 
-### Get the model weights
-
-`best.pt` (~390 MB) is published as a GitHub Release asset rather than
-committed to the repo. Download it and drop it into either
-`HmH/heatnoks/checkpoints/` or `HmH/heatnoks/checkpoints_pretrain/`:
-
-```bash
-mkdir -p HmH/heatnoks/checkpoints
-# from the GitHub Releases page, save best.pt into that folder
-```
+Grab `best.pt` from the [latest release](../../releases/latest) and put it in
+`HmH/heatnoks/checkpoints/`.
 
 ## Run
 
-Two processes, two ports.
+Two processes:
 
 ```bash
-# 1) Model API (port 5001)
-python HmH/api.py
-
-# 2) Web app (port 5000)
-python hearmyhands/app.py
+python HmH/api.py            # model API on :5001
+python hearmyhands/app.py    # web app on :5000
 ```
 
-Open <http://localhost:5000/translate>, click *Activer Caméra*, then
-*Lancer Traduction*.
+Open <http://localhost:5000/translate>, allow the camera, and hit *Lancer
+Traduction*.
 
-### Configuration (env vars)
+### Config (env vars)
 
-| Variable          | Default                                  | Where      |
-| ----------------- | ---------------------------------------- | ---------- |
-| `MODEL_API_URL`   | `http://127.0.0.1:5001/model_predict`    | `app.py`   |
-| `MODEL_TIMEOUT`   | `5` (seconds)                            | `app.py`   |
-| `PORT`            | `5000` (web) / `5001` (model)            | both       |
+| Variable        | Default                               |
+| --------------- | ------------------------------------- |
+| `MODEL_API_URL` | `http://127.0.0.1:5001/model_predict` |
+| `MODEL_TIMEOUT` | `5`                                   |
+| `PORT`          | `5000` (web) / `5001` (model)         |
 
-## Inference scripts (no web app)
+## Standalone inference
 
 ```bash
-# Video file
-python HmH/heatnoks/inference_video.py \
-    --ckpt HmH/heatnoks/checkpoints/best.pt \
-    --source path/to/video.mp4 --rotate 180 --skip 3
+# video file
+python HmH/heatnoks/inference_video.py --ckpt HmH/heatnoks/checkpoints/best.pt --source video.mp4
 
-# Webcam
-python HmH/heatnoks/inference_video.py \
-    --ckpt HmH/heatnoks/checkpoints/best.pt --source 0
+# webcam
+python HmH/heatnoks/inference_video.py --ckpt HmH/heatnoks/checkpoints/best.pt --source 0
 ```
-
-## License
-
-See LICENSE if present, otherwise all rights reserved by the original authors.
