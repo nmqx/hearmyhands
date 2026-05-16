@@ -31,6 +31,7 @@ if (video) initTranslate();
 function initTranslate() {
     const skeletonCanvas = document.getElementById('skeletonCanvas');
     const skelCtx        = skeletonCanvas.getContext('2d');
+    const videoContainer = video.closest('.video-container');
 
     const startBtn         = document.getElementById('startBtn');
     const togglePredBtn    = document.getElementById('togglePredBtn');
@@ -172,7 +173,13 @@ function initTranslate() {
         skeletonCanvas.style.height = `${dispH}px`;
     }
     window.addEventListener('resize', alignCanvasWithVideo);
-    video.addEventListener('loadedmetadata', alignCanvasWithVideo);
+    video.addEventListener('loadedmetadata', () => {
+        // Adapte le container à l'aspect réel de la webcam (4:3, 16:9, …)
+        if (videoContainer && video.videoWidth && video.videoHeight) {
+            videoContainer.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+        }
+        alignCanvasWithVideo();
+    });
 
     function updateLetter(letter) {
         if (currentLetterEl) currentLetterEl.textContent = letter ?? '-';
