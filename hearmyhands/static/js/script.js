@@ -32,6 +32,7 @@ function initTranslate() {
     const skeletonCanvas = document.getElementById('skeletonCanvas');
     const skelCtx        = skeletonCanvas.getContext('2d');
     const videoContainer = video.closest('.video-container');
+    const placeholderEl  = videoContainer ? videoContainer.querySelector('.video-placeholder') : null;
 
     const startBtn         = document.getElementById('startBtn');
     const togglePredBtn    = document.getElementById('togglePredBtn');
@@ -76,6 +77,17 @@ function initTranslate() {
             startBtn.style.display = 'none';
             togglePredBtn.disabled = false;
             statusDot.classList.add('active');
+            if (placeholderEl) placeholderEl.style.display = 'none';
+
+            // Attend les dimensions réelles puis ajuste container + canvas
+            await new Promise(r => {
+                if (video.videoWidth) return r();
+                video.addEventListener('loadedmetadata', r, { once: true });
+            });
+            if (videoContainer && video.videoWidth && video.videoHeight) {
+                videoContainer.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+            }
+            alignCanvasWithVideo();
         } catch (err) {
             console.error(err);
             alert("Impossible d'accéder à la webcam.");
