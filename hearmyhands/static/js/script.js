@@ -50,9 +50,13 @@ function initTranslate() {
     // ── Tuning de la reconnaissance de lettres ───────────────────────────────
     const MIN_LETTER_CONFIDENCE = 0.6;  // sous ce seuil, on ignore la prédiction
     const STABLE_FRAMES_TO_COMMIT = 10; // n frames identiques avant d'ajouter au mot
+    const MIN_SIGN_CONFIDENCE = 0.7;    // GRU temporel (Ocarina), plus exigeant
+    const SIGN_COOLDOWN_MS = 1500;      // anti-doublons sur le signe temporel
 
     let lastLetter  = null;
     let stableCount = 0;
+    let lastSign      = null;
+    let lastSignTime  = 0;
 
     // Canvas offscreen réutilisé pour l'encodage
     const encodeCanvas = document.createElement('canvas');
@@ -112,8 +116,10 @@ function initTranslate() {
 
     clearBtn.addEventListener('click', () => {
         wordHistoryEl.textContent = '...';
-        lastLetter = null;
-        stableCount = 0;
+        lastLetter   = null;
+        stableCount  = 0;
+        lastSign     = null;
+        lastSignTime = 0;
     });
 
     // ── Envoi d'une frame en binaire ─────────────────────────────────────────
@@ -161,6 +167,25 @@ function initTranslate() {
         const conf = data.confidence ?? 0;
         const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
         updateLetter(letter);
+
+        // Le GRU temporel (si chargé côté serveur) prime sur la lettre instantanée
+        // pour l'accumulation dans le mot — anti-doublon par cooldown.
+        const sConf = data.sign_confidence ?? 0;
+        if (data.sign && sConf >= MIN_SIGN_CONFIDENCE) {
+            handleSign(data.sign);
+        }
+    }
+
+    function handleSign(sign) {
+        const now = Date.now();
+        if (sign === lastSign && now - lastSignTime < SIGN_COOLDOWN_MS) return;
+        lastSign = sign;
+        lastSignTime = now;
+        const cur = wordHistoryEl.textContent === '...' ? '' : wordHistoryEl.textContent;
+        wordHistoryEl.textContent = cur + sign;
+        // Reset également le compteur "stable letter" pour éviter de doubler
+        // immédiatement le signe via l'accumulation MLP.
+        stableCount = 0;
     }
 
     function syncContainerAspect() {
