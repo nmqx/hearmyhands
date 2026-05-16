@@ -58,16 +58,29 @@ HmH/           API modèle + scripts d'entraînement / inférence
 
 ## Setup
 
+### Linux / macOS
+
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Récupérer `best.pt` depuis la [dernière release](../../releases/latest) et le
-placer dans `HmH/heatnoks/checkpoints/`.
+### Windows (PowerShell)
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Puis récupérer `best.pt` depuis la [dernière release](../../releases/latest)
+et le placer dans `HmH/heatnoks/checkpoints/`.
 
 ## Run
 
-Un seul processus (par défaut, modèle chargé en in-process pour la perf) :
+Un seul processus (par défaut, modèle chargé en in-process pour la perf) —
+**même commande sur les trois OS** :
 
 ```bash
 python hearmyhands/app.py    # webapp + modèle sur :5000
@@ -79,11 +92,28 @@ Ouvrir <http://localhost:5000/translate>, autoriser la caméra, et cliquer sur
 ### Mode service séparé (optionnel)
 
 Si tu veux faire tourner le modèle sur une autre machine, lance les deux
-services et active le backend HTTP :
+services et active le backend HTTP. La syntaxe des variables d'env diffère
+entre shells :
+
+**Linux / macOS (bash, zsh)**
 
 ```bash
-python HmH/api.py                           # API modèle sur :5001
-USE_HTTP_MODEL=1 python hearmyhands/app.py  # webapp sur :5000
+python HmH/api.py                           # terminal 1 — modèle sur :5001
+USE_HTTP_MODEL=1 python hearmyhands/app.py  # terminal 2 — webapp sur :5000
+```
+
+**Windows (PowerShell)**
+
+```powershell
+python HmH\api.py                                              # terminal 1
+$env:USE_HTTP_MODEL = "1"; python hearmyhands\app.py           # terminal 2
+```
+
+**Windows (cmd.exe)**
+
+```cmd
+python HmH\api.py
+set USE_HTTP_MODEL=1 && python hearmyhands\app.py
 ```
 
 `HmH/inference.py` reste l'unique source de vérité pour la logique
