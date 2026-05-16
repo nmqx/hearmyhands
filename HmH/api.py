@@ -18,8 +18,10 @@ from PIL import Image
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(SCRIPT_DIR, "heatnoks"))
+sys.path.append(SCRIPT_DIR)
 
 from model import HeatnoksModel  # noqa: E402
+from letter_classifier import LetterClassifier  # noqa: E402
 
 # ── Constants ────────────────────────────────────────────────────────────────
 INPUT_SIZE    = 256
@@ -32,6 +34,7 @@ CKPT_CANDIDATES = [
     os.path.join(SCRIPT_DIR, "heatnoks", "checkpoints_pretrain", "best.pt"),
 ]
 HAND_TASK_PATH = os.path.join(SCRIPT_DIR, "heatnoks", "hand_landmarker.task")
+POIDS_DIR      = os.path.join(SCRIPT_DIR, "Poids")
 
 log = logging.getLogger("hmh.model")
 
@@ -64,6 +67,7 @@ def load_hand_detector() -> mp_vision.HandLandmarker | None:
 app = Flask(__name__)
 model, device = load_model()
 hands_detector = load_hand_detector()
+letter_classifier = LetterClassifier.try_load(POIDS_DIR)
 
 
 # ── Image processing ─────────────────────────────────────────────────────────
@@ -160,15 +164,39 @@ def model_predict():
 
     hands_data = detect_hands(frame_bgr, kp_orig) if frame_bgr is not None else []
 
-    return jsonify({"keypoints": kp_orig.tolist(), "hands": hands_data})
+    letter, confidence = predict_letter(hands_data, frame_bgr)
+
+    return jsonify({
+        "keypoints":  kp_orig.tolist(),
+        "hands":      hands_data,
+        "letter":     letter,
+        "confidence": confidence,
+    })
+
+
+def predict_letter(hands_data, frame_bgr):
+    """Run the letter MLP on the first detected hand."""
+    if not hands_data or letter_classifier is None or frame_bgr is None:
+        return None, None
+    h_img, w_img, _ = frame_bgr.shape
+    if h_img == 0 or w_img == 0:
+        return None, None
+    features = [
+        coord
+        for pt in hands_data[0]
+        for coord in (pt[0] / w_img, pt[1] / h_img)
+    ]
+    result = letter_classifier.predict(features)
+    return (None, None) if result is None else result
 
 
 @app.route("/healthz")
 def healthz():
     return jsonify({
-        "model_loaded": model is not None,
-        "hands_detector": hands_detector is not None,
-        "device": str(device),
+        "model_loaded":      model is not None,
+        "hands_detector":    hands_detector is not None,
+        "letter_classifier": letter_classifier is not None,
+        "device":            str(device),
     })
 
 
