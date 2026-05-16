@@ -22,6 +22,7 @@ sys.path.append(SCRIPT_DIR)
 
 from model import HeatnoksModel  # noqa: E402
 from letter_classifier import LetterClassifier  # noqa: E402
+from sign_classifier import SignClassifier  # noqa: E402
 
 # ── Constants ────────────────────────────────────────────────────────────────
 INPUT_SIZE    = 256
@@ -35,6 +36,10 @@ CKPT_CANDIDATES = [
 ]
 HAND_TASK_PATH = os.path.join(SCRIPT_DIR, "heatnoks", "hand_landmarker.task")
 POIDS_DIR      = os.path.join(SCRIPT_DIR, "Poids")
+
+OCARINA_DIR     = os.path.join(SCRIPT_DIR, "..", "Modèle_Ocarina")
+OCARINA_WEIGHTS = os.environ.get("OCARINA_WEIGHTS", os.path.join(OCARINA_DIR, "ocarina_gru_v1.pth"))
+OCARINA_CLASSES = os.environ.get("OCARINA_CLASSES", os.path.join(OCARINA_DIR, "ocarina_classes.json"))
 
 log = logging.getLogger("hmh.model")
 
@@ -68,6 +73,7 @@ app = Flask(__name__)
 model, device = load_model()
 hands_detector = load_hand_detector()
 letter_classifier = LetterClassifier.try_load(POIDS_DIR)
+sign_classifier  = SignClassifier.try_load(OCARINA_WEIGHTS, OCARINA_CLASSES)
 
 
 # ── Image processing ─────────────────────────────────────────────────────────
@@ -165,12 +171,15 @@ def model_predict():
     hands_data = detect_hands(frame_bgr, kp_orig) if frame_bgr is not None else []
 
     letter, confidence = predict_letter(hands_data, frame_bgr)
+    img_h, img_w = (frame_bgr.shape[:2] if frame_bgr is not None else (0, 0))
 
     return jsonify({
-        "keypoints":  kp_orig.tolist(),
-        "hands":      hands_data,
-        "letter":     letter,
-        "confidence": confidence,
+        "keypoints":    kp_orig.tolist(),
+        "hands":        hands_data,
+        "letter":       letter,
+        "confidence":   confidence,
+        "image_width":  int(img_w),
+        "image_height": int(img_h),
     })
 
 
@@ -190,12 +199,29 @@ def predict_letter(hands_data, frame_bgr):
     return (None, None) if result is None else result
 
 
+@app.route("/sign_predict", methods=["POST"])
+def sign_predict():
+    """Run the Ocarina GRU on a 60-frame sequence of normalized hand landmarks."""
+    if sign_classifier is None:
+        return jsonify({"error": "sign classifier not loaded"}), 503
+    payload = request.get_json(silent=True) or {}
+    seq = payload.get("sequence")
+    if not isinstance(seq, list):
+        return jsonify({"error": "missing 'sequence' (list of frames)"}), 400
+    result = sign_classifier.predict(seq)
+    if result is None:
+        return jsonify({"error": "bad sequence shape (need 60 × 42)"}), 400
+    sign, conf = result
+    return jsonify({"sign": sign, "confidence": conf})
+
+
 @app.route("/healthz")
 def healthz():
     return jsonify({
         "model_loaded":      model is not None,
         "hands_detector":    hands_detector is not None,
         "letter_classifier": letter_classifier is not None,
+        "sign_classifier":   sign_classifier is not None,
         "device":            str(device),
     })
 
