@@ -29,8 +29,12 @@ SIGN_API_URL    = os.environ.get("SIGN_API_URL",  "http://127.0.0.1:5001/sign_pr
 REQUEST_TIMEOUT = float(os.environ.get("MODEL_TIMEOUT", "5"))
 SIGN_TIMEOUT    = float(os.environ.get("SIGN_TIMEOUT",  "2"))
 MAX_FRAME_BYTES = 2 * 1024 * 1024
-SEQ_LEN         = 60
+SEQ_LEN         = 45          # doit matcher SignClassifier.SEQ_LEN
 SIGN_EVERY_N    = 5
+
+# Espace pixel canonique sur lequel le GRU Ocarina a été entraîné
+# (mod_json.py force la webcam en 640x480 lors de la capture du dataset)
+TRAIN_W, TRAIN_H = 640, 480
 
 app = Flask(__name__)
 socketio = SocketIO(
@@ -192,10 +196,24 @@ def _maybe_predict_sign(sid, hands, img_w, img_h):
 
 
 def _normalize_hand(hand, img_w, img_h):
+    """Pré-traitement à l'identique de Modèle_Ocarina/Dataset.py:
+
+    - rescale les landmarks depuis l'image runtime vers l'espace pixel
+      d'entraînement (640x480)
+    - centre tous les points sur le poignet (point 0) — invariance en
+      translation
+    Retourne une liste plate de 42 floats [x0, y0, x1, y1, …].
+    """
+    if not hand or not img_w or not img_h:
+        return [0.0] * 42
+    sx = TRAIN_W / img_w
+    sy = TRAIN_H / img_h
+    scaled = [(pt[0] * sx, pt[1] * sy) for pt in hand]
+    wx, wy = scaled[0]
     out = []
-    for pt in hand:
-        out.append(pt[0] / img_w)
-        out.append(pt[1] / img_h)
+    for x, y in scaled:
+        out.append(x - wx)
+        out.append(y - wy)
     return out
 
 
