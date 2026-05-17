@@ -194,7 +194,19 @@ def learn_play(letter):
         "<style>html,body{margin:0;background:#000;height:100%;overflow:hidden}"
         "video{width:100%;height:100%;object-fit:cover;display:block}</style>"
         "</head><body>"
-        f"<video src='/api/video/{letter}' autoplay loop muted playsinline controls></video>"
+        f"<video id='v' src='/api/video/{letter}' autoplay loop muted playsinline controls></video>"
+        "<script>"
+        # Filet de sécurité : si Chrome ignore l'attribut loop, on relance
+        # manuellement à la fin et 100 ms avant la fin (certains decoders
+        # ne déclenchent jamais 'ended').
+        "var v=document.getElementById('v');"
+        "v.addEventListener('ended',function(){v.currentTime=0;v.play();});"
+        "v.addEventListener('timeupdate',function(){"
+        "  if(v.duration && v.duration - v.currentTime < 0.1){"
+        "    v.currentTime=0; v.play();"
+        "  }"
+        "});"
+        "</script>"
         "</body></html>"
     )
     return Response(html, mimetype="text/html")
