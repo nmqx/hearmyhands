@@ -23,8 +23,8 @@ Organisée en trois pôles techniques :
 
 | Pôle | Rôle |
 | --- | --- |
-| **Vision** (`image_to_Squelette` / *Gepetto*) | Détection du squelette corps + mains |
-| **Traduction** (`squelette_to_mot` / *Pinocchio*) | Classification des signes en lettres/mots |
+| **Vision** (`image_to_Squelette` ) | Détection du squelette corps + mains |
+| **Traduction** (`squelette_to_mot` ) | Classification des signes en lettres/mots |
 | **Application & UI** | Interface web, intégration, portage |
 
 **Encadrants — Laboratoire LS2N / Polytech Nantes**
