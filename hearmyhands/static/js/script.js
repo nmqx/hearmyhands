@@ -42,26 +42,33 @@ function initTranslate() {
     const statusDot        = document.querySelector('.dot');
 
     // ── Tuning du transport WebSocket ────────────────────────────────────────
-    const SEND_WIDTH       = 480;   // downscale avant envoi (économise la bande passante)
-    const JPEG_QUALITY     = 0.7;   // qualité JPEG (0..1)
-    const SEND_INTERVAL_MS = 66;    // ~15 fps max
-    const ACK_TIMEOUT_MS   = 2000;  // libère l'envoi si le serveur ne répond pas
+    const TARGET_FPS       = 60;
+    const SEND_WIDTH       = 480;                  // downscale avant envoi
+    const JPEG_QUALITY     = 0.7;
+    const SEND_INTERVAL_MS = 1000 / TARGET_FPS;    // ~16 ms (60 fps)
+    const MAX_IN_FLIGHT    = 4;                    // pipeline: max N frames en vol simultanément
+    const ACK_TIMEOUT_MS   = 2000;                 // libère un slot si le serveur ne répond pas
 
     // ── Tuning de la reconnaissance de lettres ───────────────────────────────
     const MIN_LETTER_CONFIDENCE = 0.6;  // sous ce seuil, on ignore la prédiction
     const STABLE_FRAMES_TO_COMMIT = 10; // n frames identiques avant d'ajouter au mot
+    const MIN_SIGN_CONFIDENCE = 0.7;    // GRU temporel (Ocarina), plus exigeant
+    const SIGN_COOLDOWN_MS = 1500;      // anti-doublons sur le signe temporel
 
     let lastLetter  = null;
     let stableCount = 0;
+    let lastSign      = null;
+    let lastSignTime  = 0;
 
     // Canvas offscreen réutilisé pour l'encodage
     const encodeCanvas = document.createElement('canvas');
     const encodeCtx    = encodeCanvas.getContext('2d');
 
-    let isPredicting = false;
-    let inFlight     = false;
-    let sendTimer    = null;
-    let waitTimer    = null;
+    let isPredicting    = false;
+    let inFlightCount   = 0;
+    let frameSeq        = 0;
+    let lastAppliedSeq  = -1;
+    let sendTimer       = null;
 
     // ── Socket.IO ────────────────────────────────────────────────────────────
     const socket = io();
@@ -71,7 +78,13 @@ function initTranslate() {
     // ── Caméra ───────────────────────────────────────────────────────────────
     startBtn.addEventListener('click', async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    frameRate: { ideal: TARGET_FPS, min: 30 },
+                    width:  { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+            });
             video.srcObject = stream;
             video.classList.add('active');
             startBtn.style.display = 'none';
@@ -112,13 +125,18 @@ function initTranslate() {
 
     clearBtn.addEventListener('click', () => {
         wordHistoryEl.textContent = '...';
-        lastLetter = null;
-        stableCount = 0;
+        lastLetter   = null;
+        stableCount  = 0;
+        lastSign     = null;
+        lastSignTime = 0;
     });
 
     // ── Envoi d'une frame en binaire ─────────────────────────────────────────
+    // Pipeline: jusqu'à MAX_IN_FLIGHT frames en vol simultanément (backpressure).
+    // Les ack peuvent revenir dans le désordre — on n'applique que la prédiction
+    // la plus récente via un compteur de séquence.
     function sendFrame() {
-        if (!video.srcObject || inFlight) return;
+        if (!video.srcObject || inFlightCount >= MAX_IN_FLIGHT) return;
         const vw = video.videoWidth, vh = video.videoHeight;
         if (!vw || !vh) return;
 
@@ -130,18 +148,28 @@ function initTranslate() {
         }
         encodeCtx.drawImage(video, 0, 0, sendW, sendH);
 
-        inFlight = true;
+        const seq = ++frameSeq;
+        inFlightCount++;
+        const releaseTimer = setTimeout(() => {
+            // Filet de sécurité: libère le slot si l'ack ne revient pas
+            inFlightCount = Math.max(0, inFlightCount - 1);
+        }, ACK_TIMEOUT_MS);
+
         encodeCanvas.toBlob(async (blob) => {
-            if (!blob) { inFlight = false; return; }
+            if (!blob) {
+                clearTimeout(releaseTimer);
+                inFlightCount = Math.max(0, inFlightCount - 1);
+                return;
+            }
             const buf = await blob.arrayBuffer();
-
-            // Timeout de sécurité au cas où le serveur ne répond pas
-            waitTimer = setTimeout(() => { inFlight = false; }, ACK_TIMEOUT_MS);
-
             socket.emit('frame', buf, (response) => {
-                clearTimeout(waitTimer);
-                inFlight = false;
-                if (isPredicting) applyPrediction(response, sendW, sendH);
+                clearTimeout(releaseTimer);
+                inFlightCount = Math.max(0, inFlightCount - 1);
+                if (!isPredicting) return;
+                // Seule la dernière prédiction (par seq) est appliquée
+                if (seq <= lastAppliedSeq) return;
+                lastAppliedSeq = seq;
+                applyPrediction(response, sendW, sendH);
             });
         }, 'image/jpeg', JPEG_QUALITY);
     }
@@ -161,6 +189,25 @@ function initTranslate() {
         const conf = data.confidence ?? 0;
         const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
         updateLetter(letter);
+
+        // Le GRU temporel (si chargé côté serveur) prime sur la lettre instantanée
+        // pour l'accumulation dans le mot — anti-doublon par cooldown.
+        const sConf = data.sign_confidence ?? 0;
+        if (data.sign && sConf >= MIN_SIGN_CONFIDENCE) {
+            handleSign(data.sign);
+        }
+    }
+
+    function handleSign(sign) {
+        const now = Date.now();
+        if (sign === lastSign && now - lastSignTime < SIGN_COOLDOWN_MS) return;
+        lastSign = sign;
+        lastSignTime = now;
+        const cur = wordHistoryEl.textContent === '...' ? '' : wordHistoryEl.textContent;
+        wordHistoryEl.textContent = cur + sign;
+        // Reset également le compteur "stable letter" pour éviter de doubler
+        // immédiatement le signe via l'accumulation MLP.
+        stableCount = 0;
     }
 
     function syncContainerAspect() {
