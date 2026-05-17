@@ -93,16 +93,25 @@ function setShown(el, shown) {
     el.style.display = shown ? '' : 'none';
 }
 
-function showNext() {
-    queue = buildQueue();
-    tickQueue();
-    current = queue.find(it => it.due <= 0) || queue[0] || null;
+// Récupère la lettre depuis l'URL (/learn/cards/D) ou null sinon.
+function letterFromUrl() {
+    const m = window.location.pathname.match(/\/learn\/cards\/([A-Z])\/?$/i);
+    return m ? m[1].toUpperCase() : null;
+}
 
-    const totalDone = LETTERS.filter(l => (state[l] || defaultLetterState()).status === 'known').length;
-    progressDoneEl.textContent = totalDone;
-    progressLeftEl.textContent = queue.length;
+// pushState : ajoute /D à l'URL. replace=true pour ne pas créer une nouvelle entrée
+// d'historique (utile pour la première carte au chargement).
+function pushLetterUrl(letter, replace) {
+    const target = letter ? `/learn/cards/${letter}` : '/learn/cards';
+    const cur = window.location.pathname;
+    if (cur === target) return;
+    const fn = replace ? 'replaceState' : 'pushState';
+    history[fn]({ letter }, '', target);
+}
 
-    if (!current) {
+// Met à jour TOUT le rendu d'une carte donnée (sans toucher à l'historique).
+function renderCard(letter) {
+    if (!letter) {
         setShown(cardView, false);
         setShown(emptyDeck, true);
         return;
@@ -110,20 +119,61 @@ function showNext() {
     setShown(cardView, true);
     setShown(emptyDeck, false);
 
-    const L = current.letter;
-    targetLetterEl.textContent = L;
+    targetLetterEl.textContent = letter;
 
-    // Hint preview for "j'apprends"
-    const st = state[L] || defaultLetterState();
+    const st = state[letter] || defaultLetterState();
     const nextLearningWait = Math.min(80, 5 * Math.pow(2, (st.reps || 0)));
     learnHintEl.textContent = `dans ${nextLearningWait} cartes`;
 
-    // Reset visual
     resetValidation();
-    loadExample(L);
+    loadExample(letter);
     stableCount = 0;
     lastDetected = null;
 }
+
+function showNext(opts) {
+    opts = opts || {};
+    queue = buildQueue();
+    tickQueue();
+
+    const totalDone = LETTERS.filter(l => (state[l] || defaultLetterState()).status === 'known').length;
+    progressDoneEl.textContent = totalDone;
+    progressLeftEl.textContent = queue.length;
+
+    // Au premier rendu, on respecte la lettre dans l'URL si elle existe et
+    // n'est pas marquée 'known' (sinon on passe à la suivante).
+    let pickFromUrl = null;
+    if (opts.respectUrl) {
+        const urlL = letterFromUrl();
+        if (urlL && (state[urlL] || defaultLetterState()).status !== 'known') {
+            pickFromUrl = queue.find(it => it.letter === urlL) || { letter: urlL, due: 0 };
+        }
+    }
+    current = pickFromUrl
+           || queue.find(it => it.due <= 0)
+           || queue[0]
+           || null;
+
+    if (!current) {
+        renderCard(null);
+        pushLetterUrl(null, !!opts.replace);
+        return;
+    }
+    pushLetterUrl(current.letter, !!opts.replace);
+    renderCard(current.letter);
+}
+
+// Back/forward du navigateur : on resynchronise current sur l'URL.
+window.addEventListener('popstate', () => {
+    const urlL = letterFromUrl();
+    if (urlL) {
+        current = { letter: urlL, due: 0 };
+        renderCard(urlL);
+    } else {
+        // Retour à /learn/cards sans lettre — relance le flow normal
+        showNext({ replace: true });
+    }
+});
 
 function resetValidation() {
     validatedEl.hidden = true;
@@ -307,6 +357,8 @@ function drawHands(hs) {
 skelCanvas.style.transform = 'scaleX(-1)';
 
 // ── Init ─────────────────────────────────────────────────────────────────
-showNext();
+// replace=true au boot pour ne pas créer une entrée d'historique de plus
+// quand on est déjà sur /learn/cards (sinon le 1er back ne ferait rien).
+showNext({ respectUrl: true, replace: true });
 
 })();
