@@ -1,0 +1,280 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,shapes.geometric}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true, urlcolor=blue!60!black, linkcolor=blue!60!black,
+  pdftitle={HearMyHands --- Flow des mod\`eles}
+}
+
+\definecolor{accent}{HTML}{4A90E2}
+\definecolor{accent2}{HTML}{50E3C2}
+\definecolor{warn}{HTML}{FF6B6B}
+\definecolor{good}{HTML}{32B47D}
+\definecolor{bg}{HTML}{F5F7FA}
+\definecolor{code}{HTML}{2C3E50}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize\color{code},
+  backgroundcolor=\color{bg},
+  frame=single, framerule=0pt, framesep=6pt,
+  breaklines=true, columns=fullflexible,
+  keywordstyle=\color{accent}\bfseries,
+  stringstyle=\color{good},
+  commentstyle=\color{gray}\itshape,
+}
+
+\title{\textbf{HearMyHands} \\ \large Flow des donn\'ees entre les mod\`eles}
+\author{\'Equipe HearMyHands --- Polytech Nantes}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Architecture g\'en\'erale}
+
+L'application repose sur \textbf{trois mod\`eles cha\^in\'es} c\^ot\'e backend
+et un mod\`ele auxiliaire c\^ot\'e client en mode dynamique. Le navigateur
+envoie ses frames webcam au serveur Flask via Socket.IO en binaire, et le
+serveur r\'epond en JSON \`a chaque frame.
+
+\begin{center}
+\begin{tikzpicture}[
+  font=\small,
+  node distance=0.9cm and 1.2cm,
+  every node/.style={align=center},
+  box/.style={draw, rounded corners=3pt, minimum height=10mm, minimum width=22mm, fill=bg, drop shadow={opacity=0.15, shadow xshift=1pt, shadow yshift=-1pt}},
+  modelbox/.style={box, fill=accent!15, draw=accent},
+  clientbox/.style={box, fill=accent2!20, draw=accent2!80!black},
+  arrow/.style={-{Stealth[length=2.2mm]}, line width=0.4mm},
+]
+  \node[clientbox] (browser) {Navigateur \\ \footnotesize webcam $\to$ JPEG 480px};
+  \node[modelbox, right=2.6cm of browser] (vision) {\textbf{Vision} \\ \footnotesize CSPDarknet + heatmaps};
+  \node[modelbox, below=of vision] (mp) {\textbf{MediaPipe Hands} \\ \footnotesize 21 landmarks $\times$ 2};
+  \node[modelbox, right=1.6cm of vision] (mlp) {\textbf{MLP statique} \\ \footnotesize 42 $\to$ 30 $\to$ 23};
+  \node[modelbox, right=1.6cm of mp] (gru) {\textbf{GRU Ocarina} \\ \footnotesize 45 frames $\times$ 42};
+  \draw[arrow] (browser) -- node[above]{\footnotesize frame} (vision);
+  \draw[arrow] (vision) -- node[right]{\footnotesize crop poignets} (mp);
+  \draw[arrow] (mp) -| node[pos=0.25, above]{\footnotesize landmarks} (mlp);
+  \draw[arrow] (mp) -- node[above]{\footnotesize buffer} (gru);
+  \draw[arrow, dashed] (mlp.east) -- ++(0.6,0) |- node[pos=0.75, above right]{\footnotesize \texttt{\{letter, conf\}}} (browser.east);
+  \draw[arrow, dashed] (gru.east) -- ++(0.4,0) |- node[pos=0.85, below right]{\footnotesize \texttt{\{sign, conf\}}} (browser.south east);
+\end{tikzpicture}
+\end{center}
+
+\paragraph{Transport.} Frames JPEG ($\sim$480~px, qualit\'e 0{,}7) en binaire
+sur Socket.IO. Pipeline avec backpressure : 4 frames en vol simultan\'ement
+max, ack par s\'equence, application uniquement de la plus r\'ecente.
+
+\section{Mode statique --- MLP par frame}
+
+\textbf{Objectif} : reconna\^itre une lettre par frame, fluide en continu.
+Utilis\'e pour les lettres statiques de l'alphabet LSF (toutes sauf J, P, X,
+Z qui demandent un mouvement).
+
+\subsection*{Flux serveur \`a chaque frame}
+
+\begin{enumerate}[leftmargin=*, itemsep=2pt]
+  \item D\'ecodage JPEG re\c{c}u.
+  \item \textbf{Vision} : CSPDarknet53 + heatmaps + Soft-Argmax produisent
+        9 keypoints (cou, \'epaules, coudes, poignets, hanches).
+  \item Crop de deux fen\^etres centr\'ees sur les poignets ($\to$ deux
+        sous-images).
+  \item \textbf{MediaPipe Hands} sur chaque crop : 21 landmarks $(x, y)$
+        par main d\'etect\'ee.
+  \item \textbf{MLP} (42 $\to$ 30 $\to$ 23 logits) sur les 42 coordonn\'ees
+        \og main principale \fg{} : $\arg\max$ + softmax $\to$ \texttt{letter}
+        + \texttt{confidence}.
+  \item R\'eponse JSON unique :
+\begin{lstlisting}
+{
+  "skeleton":   [[x,y,vis], ... 9 pts],
+  "hands":      [[[x,y], ... 21 pts], ...],
+  "letter":     "A",
+  "confidence": 0.84,
+  "sign":       null,
+  "sign_confidence": null
+}
+\end{lstlisting}
+\end{enumerate}
+
+\subsection*{C\^ot\'e client}
+
+Le client dessine en permanence skeleton + hands. Pour la lettre :
+
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+  \item \textbf{Seuil de confiance} : on ignore la pr\'ediction si
+        \texttt{confidence < 0.6}.
+  \item \textbf{Stabilit\'e 10 frames} : on n'ajoute la lettre au mot que
+        si la m\^eme valeur sort 10 frames de suite. \'Evite que le bruit
+        entre deux signes pollue le mot final.
+  \item \textbf{Aucun seuil g\'eom\'etrique} : la ligne du seuil
+        (canvas, slider) est masqu\'ee en mode statique --- l'inf\'erence
+        tourne sans interruption.
+\end{itemize}
+
+\section{Mode dynamique --- GRU Ocarina + d\'eclencheur de seuil}
+
+\textbf{Objectif} : reconna\^itre les signes \emph{en mouvement} (J, P, X, Z,
+mots complets) qui n\'ecessitent une trajectoire temporelle.
+
+\subsection*{Flux serveur}
+
+L'envoi reste continu (m\^eme rythme, m\^eme protocole). Les \'etapes 1--4
+ci-dessus sont identiques. La diff\'erence vient apr\`es l'\'etape 4 :
+
+\begin{enumerate}[leftmargin=*, itemsep=2pt, start=5]
+  \item Pour chaque session Socket.IO, le serveur maintient une
+        \textbf{m\'emoire roulante} : un \texttt{deque(maxlen=45)} de
+        vecteurs 42-float.
+  \item \textbf{Normalisation des landmarks} avant push dans le buffer :
+        \begin{itemize}[leftmargin=*, itemsep=0pt]
+          \item rescale depuis la r\'esolution runtime vers l'espace
+                pixel d'entra\^inement (640$\times$480),
+          \item recentre tous les points sur le poignet (point~0) $\to$
+                \textbf{invariance en translation}.
+        \end{itemize}
+  \item Toutes les \texttt{SIGN\_EVERY\_N = 5} frames, si le buffer est
+        plein (45 frames disponibles), on appelle le \textbf{GRU Ocarina}
+        sur la s\'equence compl\`ete.
+\end{enumerate}
+
+\paragraph{Architecture GRU Ocarina.} Embedding lin\'eaire $42 \to 256
+\to 64$ avec ReLU + Dropout 0{,}2, puis un GRU \`a 1 couche cach\'ee
+($\text{hidden}=64$, \texttt{batch\_first=True}), puis un Linear
+$64 \to N_\text{classes}$. On prend uniquement la sortie du dernier
+pas de temps. La pr\'ediction sort sous forme \texttt{sign} +
+\texttt{sign\_confidence}.
+
+R\'eponse JSON enrichie :
+
+\begin{lstlisting}
+{
+  "skeleton":   [...],
+  "hands":      [...],
+  "letter":     "A",        // toujours calcul\'e (gratuit)
+  "confidence": 0.65,
+  "sign":       "Bonjour",  // <- nouveau, GRU Ocarina
+  "sign_confidence": 0.82
+}
+\end{lstlisting}
+
+\subsection*{Le d\'eclencheur de seuil c\^ot\'e client}
+
+C'est ici que le mode dynamique se distingue r\'eellement : le client
+ne fait pas confiance \`a chaque \texttt{sign} re\c{c}u, il attend la
+\textbf{fin du geste} pour valider.
+
+\begin{enumerate}[leftmargin=*, itemsep=3pt]
+  \item Le navigateur charge \textbf{MediaPipe Hands en local} (CDN,
+        modelComplexity=0, $\sim$12 MB cach\'es par le navigateur).
+        Un RAF loop pompe la frame webcam locale et r\'ecup\`ere les
+        landmarks \emph{c\^ot\'e client} ind\'ependamment du serveur.
+  \item Une \textbf{ligne horizontale} est dessin\'ee sur un canvas
+        au-dessus de la vid\'eo, \`a la hauteur \texttt{thresholdRatio}
+        ($\in [0{,}10\ ;\ 0{,}90]$, r\'eglable via un slider, persist\'e
+        en \texttt{localStorage}).
+  \item \`A chaque tick RAF, on compare le $y$ minimum des landmarks
+        (point le plus haut) au seuil :
+        \begin{itemize}[leftmargin=*, itemsep=0pt]
+          \item \textbf{au-dessus} $\to$ ligne verte (\og signe en
+                cours \fg{}),
+          \item \textbf{en-dessous} pendant plus de 500~ms continus
+                $\to$ ligne rouge (\og en attente \fg{}).
+        \end{itemize}
+  \item \`A chaque pr\'ediction GRU re\c{c}ue du serveur avec
+        \texttt{sign\_confidence} $\geq 0{,}7$, on \textbf{stocke}
+        la pr\'ediction dans \texttt{pendingSign} (en gardant le sign
+        de plus haute confidence si plusieurs arrivent).
+  \item Au moment de la \textbf{transition au-dessus $\to$ en-dessous}
+        (d\'ebounc\'ee 500~ms) : le client consid\`ere le geste termin\'e
+        et \textbf{commit} \texttt{pendingSign} dans le mot.
+\end{enumerate}
+
+\paragraph{Pas de stabilit\'e 10 frames.} Contrairement au MLP, le
+GRU travaille d\'ej\`a sur 45 frames temporellement coh\'erentes. Il
+sort une pr\'ediction d\'ej\`a stable par construction. Imposer une
+stabilit\'e suppl\'ementaire reviendrait \`a sommer du bruit.
+
+\paragraph{Le squelette reste affich\'e en permanence.} M\^eme quand la
+main est sous le seuil, le serveur continue de renvoyer
+\texttt{skeleton} + \texttt{hands} et le client les redessine. Seul le
+\emph{commit du sign dans le mot} est gat\'e par le seuil.
+
+\section{Synth\`ese visuelle des deux flows}
+
+\subsection*{Statique}
+
+\begin{center}
+\begin{tikzpicture}[
+  font=\footnotesize, node distance=0.35cm,
+  step/.style={draw, rounded corners=2pt, minimum height=7mm, minimum width=22mm, align=center, fill=bg},
+  arr/.style={-{Stealth[length=1.8mm]}, line width=0.3mm},
+]
+  \node[step] (a) {frame webcam};
+  \node[step, right=of a] (b) {Vision + MediaPipe};
+  \node[step, right=of b] (c) {MLP};
+  \node[step, right=of c] (d) {conf $\geq 0{,}6$ ?};
+  \node[step, right=of d] (e) {10 frames \\ identiques ?};
+  \node[step, right=of e, fill=good!20, draw=good] (f) {+1 lettre \\ au mot};
+  \draw[arr] (a) -- (b); \draw[arr] (b) -- (c); \draw[arr] (c) -- (d);
+  \draw[arr] (d) -- (e); \draw[arr] (e) -- (f);
+\end{tikzpicture}
+\end{center}
+
+\subsection*{Dynamique}
+
+\begin{center}
+\begin{tikzpicture}[
+  font=\footnotesize, node distance=0.35cm,
+  step/.style={draw, rounded corners=2pt, minimum height=7mm, minimum width=22mm, align=center, fill=bg},
+  arr/.style={-{Stealth[length=1.8mm]}, line width=0.3mm},
+]
+  \node[step] (a) {frame webcam};
+  \node[step, right=of a] (b) {Vision + MediaPipe};
+  \node[step, right=of b] (c) {push dans buffer \\ 45 frames};
+  \node[step, right=of c] (d) {GRU Ocarina \\ (tous les 5)};
+  \node[step, below=0.6cm of c, fill=accent2!20, draw=accent2!80!black] (cli1) {MediaPipe \\ client-side};
+  \node[step, right=of cli1, fill=accent2!20, draw=accent2!80!black] (cli2) {$y_\text{main} < $ seuil ?};
+  \node[step, right=of cli2, fill=accent2!20, draw=accent2!80!black] (cli3) {transition \\ haut $\to$ bas};
+  \node[step, right=of cli3, fill=good!20, draw=good] (cli4) {+1 signe \\ au mot};
+  \draw[arr] (a) -- (b); \draw[arr] (b) -- (c); \draw[arr] (c) -- (d);
+  \draw[arr] (d) -- ++(2.2,0) |- node[pos=0.25, right]{\texttt{pendingSign}} (cli3);
+  \draw[arr] (cli1) -- (cli2); \draw[arr] (cli2) -- (cli3); \draw[arr] (cli3) -- (cli4);
+\end{tikzpicture}
+\end{center}
+
+\section{R\'ecapitulatif des constantes}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lll}
+\hline
+\textbf{Constante} & \textbf{Valeur} & \textbf{Effet} \\
+\hline
+\texttt{SEQ\_LEN}                 & 45    & taille du buffer temporel GRU \\
+\texttt{SIGN\_EVERY\_N}           & 5     & inf\'erence GRU 1 frame sur 5 \\
+\texttt{TRAIN\_W}, \texttt{TRAIN\_H} & 640, 480 & espace pixel canonique de normalisation \\
+\texttt{MIN\_LETTER\_CONFIDENCE}  & 0{,}6 & seuil de confiance MLP \\
+\texttt{STABLE\_FRAMES\_TO\_COMMIT}& 10   & stabilit\'e MLP avant commit \\
+\texttt{MIN\_SIGN\_CONFIDENCE}    & 0{,}7 & seuil de confiance GRU \\
+\texttt{ABSENCE\_GRACE\_MS}       & 500 ms & d\'ebounce de la descente sous le seuil \\
+\texttt{thresholdRatio}           & 0{,}40 & hauteur du seuil (slider 10--90~\%) \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.6em}
+\noindent\textbf{Code source :} \url{https://github.com/nmqx/hearmyhands}\\
+\textbf{Live :} \url{https://hearmyhands.asia}
+
+\end{document}
