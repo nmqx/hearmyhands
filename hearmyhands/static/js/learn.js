@@ -125,8 +125,11 @@ function resetValidation() {
     detectedBox.classList.remove('match');
 }
 
+// Bump si on ré-encode les vidéos — force Cloudflare/navigateur à refetch.
+const VIDEO_VERSION = 'fs1';
+
 function loadExample(letter) {
-    const src = `/static/learn/${letter}.mp4`;
+    const src = `/static/learn/${letter}.mp4?v=${VIDEO_VERSION}`;
     // Reset visuel
     exampleMissing.hidden = true;
     exampleVideo.style.display = '';
