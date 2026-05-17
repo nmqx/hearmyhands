@@ -38,7 +38,7 @@
                     <span><i class="fa-solid fa-circle-play"></i> Exemple</span>
                 </div>
                 <div class="learn-video-wrap">
-                    <video id="exampleVideo" autoplay loop muted playsinline></video>
+                    <video id="exampleVideo" autoplay loop muted playsinline preload="auto"></video>
                     <div id="exampleMissing" class="learn-missing" hidden>
                         <i class="fa-solid fa-video-slash"></i>
                         <p>Vidéo à venir</p>
@@ -102,5 +102,5 @@
 </div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="{{ url_for('static', filename='js/learn.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/learn.js') }}?v=3"></script>
 {% endblock %}

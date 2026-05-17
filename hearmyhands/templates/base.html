@@ -6,7 +6,7 @@
     <title>HearMyHands</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=5">
     <!-- Theme: applied before paint to avoid white flash on dark mode load -->
     <script>
       (function () {
@@ -20,11 +20,6 @@
     <!-- Arrière-plan animé global -->
     <div class="bg-shape shape-1"></div>
     <div class="bg-shape shape-2"></div>
-
-    <!-- Mini bandeau photo équipe au-dessus de la navbar -->
-    <div class="top-banner" role="img" aria-label="Équipe HearMyHands">
-        <img src="{{ url_for('static', filename='images/banner.jpg') }}" alt="">
-    </div>
 
     <!-- Barre de Navigation Globale -->
     <nav class="navbar">
