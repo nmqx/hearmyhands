@@ -44,7 +44,7 @@ function initTranslate() {
     const statusDot        = document.querySelector('.dot');
 
     // ── Tuning du transport WebSocket ────────────────────────────────────────
-    const TARGET_FPS       = 60;
+    const TARGET_FPS       = 30;   // le serveur CPU ne sustain pas plus, inutile de gaspiller
     const SEND_WIDTH       = 480;                  // downscale avant envoi
     const JPEG_QUALITY     = 0.7;
     const SEND_INTERVAL_MS = 1000 / TARGET_FPS;    // ~16 ms (60 fps)
