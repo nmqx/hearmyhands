@@ -22,7 +22,7 @@
         <!-- Zone Résultats -->
         <div class="output-area">
             <div class="prediction-box">
-                <span class="label">Lettre détectée</span>
+                <span class="label" id="currentLabel">Lettre détectée</span>
                 <h2 id="currentLetter">-</h2>
             </div>
             
@@ -40,6 +40,9 @@
             </button>
             <button id="togglePredBtn" class="btn secondary" disabled>
                 <i class="fa-solid fa-play"></i> Lancer Traduction
+            </button>
+            <button id="modeBtn" class="btn secondary" title="Statique = lettre par frame (MLP). Dynamique = signe temporel (GRU Ocarina)">
+                <i class="fa-solid fa-image"></i> Mode : Statique
             </button>
         </div>
     </div>
