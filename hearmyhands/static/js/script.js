@@ -59,6 +59,11 @@ function initTranslate() {
     let mpHands = null;
     let mpHandsBusy = false;
     let lastHandTopY = null;         // Y normalisé [0..1] de la landmark la plus haute
+    let lastMpTickTs = 0;            // timestamp du dernier mpHands.send() pour throttle
+    // Throttle MediaPipe : 8 Hz suffit largement (transition débouncée 500 ms).
+    // L'inférence Hands coûte ~30-50 ms CPU, lancer à 60 fps RAF saturait le
+    // main thread et causait du lag visible — d'où ce throttle.
+    const MP_INTERVAL_MS = 125;
 
     const startBtn         = document.getElementById('startBtn');
     const togglePredBtn    = document.getElementById('togglePredBtn');
@@ -450,25 +455,33 @@ function initTranslate() {
         mpHands.onResults(onHandsResults);
     }
 
-    // Boucle RAF : pump frames dans MediaPipe Hands, gère le seuil
-    // (uniquement en mode dynamique) et commit le sign à la descente.
+    // Boucle RAF : gère le seuil (uniquement en mode dynamique) et commit
+    // le sign à la descente. MediaPipe Hands est pompé seulement ici, throttlé
+    // à MP_INTERVAL_MS ET désactivé entièrement en mode statique pour ne pas
+    // saturer le main thread (cause de lag).
     async function trackLoop() {
-        if (mpHands && video.readyState >= 2 && video.videoWidth && !mpHandsBusy) {
+        // En mode statique : ZÉRO travail (pas de MediaPipe, pas de dessin).
+        // C'est ça qui causait du lag — Hands tournait à 60 Hz pour rien.
+        if (mode !== 'dynamic') {
+            if (handAboveNow || pendingSign) {
+                clearThresholdCanvas();
+                handAboveNow = false;
+                pendingSign = null;
+                pendingSignConf = 0;
+            }
+            requestAnimationFrame(trackLoop);
+            return;
+        }
+
+        // Mode dynamique : Hands throttlé à ~8 Hz.
+        const tNow = performance.now();
+        if (mpHands && !mpHandsBusy && (tNow - lastMpTickTs) >= MP_INTERVAL_MS
+                && video.readyState >= 2 && video.videoWidth) {
+            lastMpTickTs = tNow;
             mpHandsBusy = true;
             try { await mpHands.send({ image: video }); }
             catch (e) { /* glitch ponctuel, on continue */ }
             mpHandsBusy = false;
-        }
-
-        // En mode statique le seuil ne fait rien : on efface le canvas et go.
-        if (mode !== 'dynamic') {
-            clearThresholdCanvas();
-            // Reset l'état pour repartir propre quand on retourne en dynamique
-            handAboveNow = false;
-            pendingSign = null;
-            pendingSignConf = 0;
-            requestAnimationFrame(trackLoop);
-            return;
         }
 
         // Mode dynamique : on suit la position de la main.
