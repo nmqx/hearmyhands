@@ -20,8 +20,10 @@ DEFAULT_CLASSES = list(string.ascii_uppercase)  # 26 letters fallback
 
 
 class _OcarinaGRU(nn.Module):
-    def __init__(self, input_size: int = 42, hidden_size: int = 128,
-                 num_layers: int = 2, num_classes: int = 26):
+    # Doit rester aligné avec Modèle_Ocarina/Ocarina_GRU.py (hidden=64, layers=1
+    # depuis le ré-entraînement Ocarina v1).
+    def __init__(self, input_size: int = 42, hidden_size: int = 64,
+                 num_layers: int = 1, num_classes: int = 26):
         super().__init__()
         self.embedding = nn.Sequential(
             nn.Linear(input_size, 256),
