@@ -126,7 +126,7 @@ function resetValidation() {
 }
 
 // Bump si on ré-encode les vidéos — force Cloudflare/navigateur à refetch.
-const VIDEO_VERSION = 'fs1';
+const VIDEO_VERSION = 'h264';
 let loadSeq = 0;
 
 function loadExample(letter) {
