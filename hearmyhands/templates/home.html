@@ -94,9 +94,7 @@
                 <h4><i class="fa-solid fa-eye"></i> Pôle Vision <span class="pole-tag-inline">Modèle 1</span></h4>
                 <ul class="pole-members">
                     <li data-name="Maxime D'AURIA" class="member-pill member-resp"><strong>Maxime D'AURIA</strong> · Responsable</li>
-                    <li data-name="Titouan DESAILLY" class="member-pill">Titouan DESAILLY</li>
                     <li data-name="Thibault CAPEDEVIELLE" class="member-pill">Thibault CAPEDEVIELLE</li>
-                    <li data-name="François DELAUNAY" class="member-pill">François DELAUNAY</li>
                 </ul>
             </div>
 
@@ -114,19 +112,21 @@
             <div class="pole-card">
                 <h4><i class="fa-solid fa-window-maximize"></i> Pôle Interface</h4>
                 <ul class="pole-members">
+                    <li data-name="Titouan DESAILLY" class="member-pill member-resp"><strong>Titouan DESAILLY</strong> · Responsable</li>
+                    <li data-name="Maxime D'AURIA" class="member-pill member-resp"><strong>Maxime D'AURIA</strong> · Responsable</li>
                     <li data-name="Kaelig LERAY"  class="member-pill member-resp"><strong>Kaelig LERAY</strong> · Responsable</li>
                     <li data-name="Killian SEVALLE" class="member-pill">Killian SEVALLE</li>
-                    <li data-name="Maxime D'AURIA" class="member-pill">Maxime D'AURIA</li>
                 </ul>
             </div>
 
             <div class="pole-card">
                 <h4><i class="fa-solid fa-bullhorn"></i> Communication &amp; Direction artistique</h4>
                 <ul class="pole-members">
-                    <li data-name="Arthur PIERRE" class="member-pill member-resp"><strong>Arthur PIERRE</strong> · Responsable / CM</li>
-                    <li data-name="Nestor CORABOEUF" class="member-pill">Nestor CORABOEUF</li>
-                    <li data-name="Kaelig LERAY"     class="member-pill">Kaelig LERAY</li>
-                    <li data-name="Louna PEJOT"      class="member-pill">Louna PEJOT</li>
+                    <li data-name="François DELAUNAY" class="member-pill member-resp"><strong>François DELAUNAY</strong> · Responsable</li>
+                    <li data-name="Louna PEJOT"       class="member-pill member-resp"><strong>Louna PEJOT</strong> · Responsable</li>
+                    <li data-name="Arthur PIERRE"     class="member-pill member-resp"><strong>Arthur PIERRE</strong> · Responsable / CM</li>
+                    <li data-name="Nestor CORABOEUF"  class="member-pill">Nestor CORABOEUF</li>
+                    <li data-name="Kaelig LERAY"      class="member-pill">Kaelig LERAY</li>
                 </ul>
             </div>
         </div>
@@ -216,13 +216,13 @@
 (function () {
     const bios = {
         "Marius DEMONFAUCON":   { role: "Chef de projet · Coordination",                          bio: "Coordinateur de l'équipe de 12. Pilote le planning, anime les réunions, tranche les arbitrages techniques entre pôles et fait le lien avec la tutrice pédagogique. A aussi développé l'outil de segmentation vidéo qui alimente le dataset du GRU Ocarina." },
-        "Titouan DESAILLY":     { role: "Pôle Vision (Modèle 1)",                                 bio: "Pôle Vision : contribue à l'architecture du Modèle 1 (CSPDarknet53 + heatmaps + Soft-Argmax) et au pipeline d'entraînement pour les 9 points du haut du corps." },
-        "Maxime D'AURIA":       { role: "Responsable Pôle Vision · Pôle Interface · Backend & GCP · Responsable Git", bio: "Responsable du pôle Vision (Modèle 1). Côté backend, gère l'API modèle et a aussi mis la main au front. Administre l'infrastructure Google Cloud (instance, IP statique, quotas, accès) et l'organisation du dépôt Git (merge requests, branches, historique)." },
+        "Titouan DESAILLY":     { role: "Responsable Pôle Interface",                             bio: "Responsable du pôle Interface : direction de la conception UX et de l'intégration côté front." },
+        "Maxime D'AURIA":       { role: "Responsable Pôle Vision · Responsable Pôle Interface · Backend & GCP · Responsable Git", bio: "Double responsabilité : pôle Vision (Modèle 1) et pôle Interface. Côté backend, gère l'API modèle et a aussi mis la main au front. Administre l'infrastructure Google Cloud (instance, IP statique, quotas, accès) et l'organisation du dépôt Git (merge requests, branches, historique)." },
         "Thibault CAPEDEVIELLE":{ role: "Pôle Vision · Gérant Drive",                             bio: "Pôle Vision : travaille sur le backbone, la fonction de perte OKSLoss et la stabilisation Soft-Argmax. Gère le Google Drive de l'équipe (centralisation des documents, livrables, ressources)." },
-        "François DELAUNAY":    { role: "Pôle Vision · Admin Discord",                            bio: "Pôle Vision : contribue à l'entraînement et au pré-traitement (padding, normalisation 416×416). Administre le serveur Discord de l'équipe (rôles, channels, automation)." },
+        "François DELAUNAY":    { role: "Responsable Communication & DA · Admin Discord",        bio: "Responsable du pôle Communication & Direction artistique. Administre aussi le serveur Discord de l'équipe (rôles, channels, automation)." },
         "Killian SEVALLE":      { role: "Responsable Pôle Traduction (Ocarina) · Pôle Interface", bio: "Responsable du pôle Traduction. Pilote le GRU temporel Ocarina (45 frames × 42 features) pour les signes dynamiques comme J et Z. Contribue aussi au pôle Interface." },
         "Dalyan PENISSON":      { role: "Pôle Traduction (Modèle 2)",                             bio: "Pôle Traduction : contribue au MLP statique 42→30→23 qui classe les lettres à partir des landmarks de main, et à l'entraînement du GRU." },
-        "Louna PEJOT":          { role: "Pôle Traduction · Communication & DA",                   bio: "Double rôle : pôle Traduction (entraînement et validation) et pôle Communication & Direction artistique (identité visuelle, captation des vidéos LSF pour le dataset)." },
+        "Louna PEJOT":          { role: "Responsable Communication & DA · Pôle Traduction",       bio: "Responsable du pôle Communication & Direction artistique (identité visuelle, captation des vidéos LSF pour le dataset). Contribue aussi au pôle Traduction (entraînement et validation)." },
         "Nestor CORABOEUF":     { role: "Pôle Traduction · Communication & DA",                   bio: "Double rôle : pôle Traduction (classification) et Communication (relation associations, collecte de données vidéo). A signé la majorité des vidéos modèles utilisées dans le mode Apprentissage." },
         "Nathan DIZY":          { role: "Pôle Traduction (Modèle 2)",                             bio: "Pôle Traduction : travaille sur la chaîne d'entraînement et la préparation des datasets de classification temporelle." },
         "Kaelig LERAY":         { role: "Responsable Pôle Interface · Communication & DA",        bio: "Responsable du pôle Interface : direction artistique, conception UX, intégration front/back, déploiement (GCP Europe, Cloudflare, TLS, CI/CD). Contribue aussi à la communication et au trailer." },
