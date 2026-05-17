@@ -1,6 +1,6 @@
 # HearMyHands
 
-### 🌐 Site en ligne — **<https://hearmyhands.asia>**
+### Site en ligne — **<https://hearmyhands.asia>**
 
 > Projet **PeiP 2A — Polytech** · Année 2025-2026
 > Traducteur de Langue des Signes Française (LSF) en temps réel via webcam.
