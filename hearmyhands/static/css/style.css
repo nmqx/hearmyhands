@@ -1177,6 +1177,33 @@ video.active { opacity: 1; }
 .quiz-end-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .quiz-end-actions .btn { max-width: 260px; }
 
+/* Formulaire submit pseudo en fin de partie */
+.quiz-end-submit {
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--card-tint); border: 1px solid var(--card-border);
+    border-radius: 12px; padding: 16px 18px;
+    max-width: 480px; margin: 8px auto;
+}
+.quiz-end-submit label {
+    text-align: left; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+}
+.quiz-end-submit-row { display: flex; gap: 10px; }
+.quiz-end-submit input {
+    flex: 1; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--card-border); background: var(--glass-bg);
+    color: var(--text-main); font-size: 1rem;
+}
+.quiz-end-submit .btn { max-width: 200px; padding: 12px 18px; }
+.quiz-end-status { margin: 0; min-height: 1.2em; font-size: 0.9rem; text-align: left; }
+.quiz-end-status.ok  { color: var(--secondary); }
+.quiz-end-status.bad { color: var(--accent); }
+
+@media (max-width: 540px) {
+    .quiz-end-submit-row { flex-direction: column; }
+    .quiz-end-submit .btn { max-width: none; width: 100%; }
+}
+
 @media (max-width: 768px) {
     .quiz-modes, .quiz-leaderboards { grid-template-columns: 1fr; }
     .quiz-answer { flex-direction: column; }

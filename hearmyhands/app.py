@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import sqlite3
 import sys
 import time
 from collections import deque
 from threading import Lock
 
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 from flask_socketio import SocketIO
 
 try:
@@ -166,6 +168,110 @@ def learn_quiz_game(mode):
     if mode not in ("hardcore", "10sec", "survival"):
         abort(404)
     return render_template("learn_quiz_game.html", mode=mode)
+
+
+# ── Leaderboard quiz (SQLite local) ─────────────────────────────────────
+QUIZ_DB_PATH = os.environ.get("QUIZ_DB_PATH", os.path.join(_HERE, "quiz_scores.db"))
+QUIZ_MODES   = ("hardcore", "10sec", "survival")
+# Borne supérieure raisonnable selon le mode (anti-abus naïf)
+QUIZ_MAX_SCORE = {"hardcore": 10, "10sec": 10, "survival": 9999}
+_PSEUDO_RE = re.compile(r"[^\w\-. ]+", re.UNICODE)
+
+
+def _quiz_db():
+    """Connexion SQLite par appel (thread-safe naturellement). WAL pour
+    de la concurrence raisonnable même avec gevent/eventlet en prod."""
+    conn = sqlite3.connect(QUIZ_DB_PATH, timeout=5)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _quiz_db_init():
+    with _quiz_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS quiz_scores (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                mode       TEXT      NOT NULL,
+                pseudo     TEXT      NOT NULL,
+                score      INTEGER   NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_mode_score "
+                     "ON quiz_scores(mode, score DESC, created_at ASC)")
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.Error:
+            pass
+
+
+_quiz_db_init()
+
+
+def _sanitize_pseudo(raw: str) -> str:
+    """Garde lettres/chiffres/tirets/points/espace, max 20 chars."""
+    if not raw:
+        return ""
+    cleaned = _PSEUDO_RE.sub("", str(raw)).strip()
+    return cleaned[:20] or "Anonyme"
+
+
+@app.route("/api/quiz/leaderboard/<mode>")
+def api_quiz_leaderboard(mode):
+    from flask import abort
+    if mode not in QUIZ_MODES:
+        abort(404)
+    limit = request.args.get("limit", default=10, type=int)
+    limit = max(1, min(50, limit))
+    try:
+        with _quiz_db() as conn:
+            rows = conn.execute(
+                "SELECT pseudo, score, created_at FROM quiz_scores "
+                "WHERE mode = ? ORDER BY score DESC, created_at ASC LIMIT ?",
+                (mode, limit),
+            ).fetchall()
+    except sqlite3.Error as exc:
+        _log.warning("quiz leaderboard read failed: %s", exc)
+        return jsonify({"error": "db"}), 503
+    return jsonify({
+        "mode": mode,
+        "entries": [{"pseudo": r["pseudo"], "score": r["score"],
+                     "ts": r["created_at"]} for r in rows],
+    })
+
+
+@app.route("/api/quiz/score", methods=["POST"])
+def api_quiz_submit():
+    data = request.get_json(silent=True) or {}
+    mode   = data.get("mode")
+    pseudo = _sanitize_pseudo(data.get("pseudo", ""))
+    score_raw = data.get("score")
+    if mode not in QUIZ_MODES:
+        return jsonify({"error": "invalid mode"}), 400
+    try:
+        score = int(score_raw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid score"}), 400
+    if score < 0 or score > QUIZ_MAX_SCORE.get(mode, 9999):
+        return jsonify({"error": "score out of range"}), 400
+    try:
+        with _quiz_db() as conn:
+            cur = conn.execute(
+                "INSERT INTO quiz_scores (mode, pseudo, score) VALUES (?, ?, ?)",
+                (mode, pseudo, score),
+            )
+            score_id = cur.lastrowid
+            # Calcule le rang du nouveau score dans le top 10
+            rank_row = conn.execute(
+                "SELECT COUNT(*) + 1 AS rank FROM quiz_scores "
+                "WHERE mode = ? AND (score > ? OR (score = ? AND id < ?))",
+                (mode, score, score, score_id),
+            ).fetchone()
+            rank = rank_row["rank"] if rank_row else None
+    except sqlite3.Error as exc:
+        _log.warning("quiz score write failed: %s", exc)
+        return jsonify({"error": "db"}), 503
+    return jsonify({"ok": True, "rank": rank, "pseudo": pseudo, "score": score})
 
 
 @app.route("/videotest")

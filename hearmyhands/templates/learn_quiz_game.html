@@ -53,9 +53,23 @@
         <i class="fa-solid fa-trophy"></i>
         <h2 id="endTitle">Partie terminée</h2>
         <p id="endSub">—</p>
-        <div id="endRank" class="quiz-end-rank"></div>
+
+        <!-- Saisie pseudo + envoi au leaderboard -->
+        <form id="endSubmitForm" class="quiz-end-submit">
+            <label for="endPseudo"><i class="fa-solid fa-user-pen"></i> Ton pseudo pour le leaderboard</label>
+            <div class="quiz-end-submit-row">
+                <input id="endPseudo" type="text" maxlength="20" placeholder="Anonyme" autocomplete="off">
+                <button type="submit" class="btn primary" id="endSubmitBtn">
+                    <i class="fa-solid fa-paper-plane"></i> Enregistrer
+                </button>
+            </div>
+            <p id="endSubmitStatus" class="quiz-end-status"></p>
+        </form>
+
+        <div id="endRank" class="quiz-end-rank" hidden></div>
+
         <div class="quiz-end-actions">
-            <button id="playAgainBtn" class="btn primary"><i class="fa-solid fa-rotate-right"></i> Rejouer</button>
+            <button id="playAgainBtn" class="btn secondary"><i class="fa-solid fa-rotate-right"></i> Rejouer</button>
             <a href="{{ url_for('learn_quiz') }}" class="btn secondary"><i class="fa-solid fa-list"></i> Modes & leaderboards</a>
         </div>
     </div>
@@ -63,5 +77,5 @@
 </div>
 
 <script>window.HMH_QUIZ_MODE = "{{ mode }}";</script>
-<script src="{{ url_for('static', filename='js/quiz.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/quiz.js') }}?v=2"></script>
 {% endblock %}
