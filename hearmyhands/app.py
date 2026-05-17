@@ -142,6 +142,16 @@ def learn():
     return render_template("learn.html")
 
 
+@app.route("/learn/cards")
+def learn_cards():
+    return render_template("learn_cards.html")
+
+
+@app.route("/learn/library")
+def learn_library():
+    return render_template("learn_library.html")
+
+
 @app.route("/healthz")
 def healthz():
     if _engine is not None:

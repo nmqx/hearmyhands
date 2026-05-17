@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-wrapper reveal">
+
+    <div class="learn-header">
+        <a href="{{ url_for('learn') }}" class="learn-back">
+            <i class="fa-solid fa-arrow-left"></i> Apprentissage
+        </a>
+        <h2 style="margin: 0; font-size: 1.3rem;">Bibliothèque</h2>
+    </div>
+
+    <div class="glass-card">
+        <p class="lib-intro">
+            Toutes les lettres et leur statut. Clique sur une lettre <strong>connue</strong> pour la remettre en file de révision.
+        </p>
+
+        <div class="lib-legend">
+            <span><i class="lib-dot lib-dot-new"></i> Pas encore vue</span>
+            <span><i class="lib-dot lib-dot-learning"></i> En apprentissage</span>
+            <span><i class="lib-dot lib-dot-known"></i> Connue</span>
+        </div>
+
+        <div class="lib-grid" id="libGrid"></div>
+
+        <div class="lib-actions">
+            <button class="btn secondary" id="resetBtn">
+                <i class="fa-solid fa-rotate-left"></i> Tout réinitialiser
+            </button>
+            <a href="{{ url_for('learn_cards') }}" class="btn primary">
+                <i class="fa-solid fa-layer-group"></i> Reprendre les cartes
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    const KEY = 'hmh-learn-state-v1';
+
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } };
+    const save = (s) => localStorage.setItem(KEY, JSON.stringify(s));
+
+    const grid = document.getElementById('libGrid');
+
+    function render() {
+        const state = load();
+        grid.innerHTML = '';
+        LETTERS.forEach(l => {
+            const st = state[l] || { status: 'new', reps: 0 };
+            const cell = document.createElement('button');
+            cell.className = 'lib-cell lib-' + st.status;
+            cell.innerHTML = `<span class="lib-letter">${l}</span><span class="lib-stat">${labelOf(st)}</span>`;
+            cell.title = `Statut: ${labelOf(st)} · ${st.reps || 0} révisions`;
+            cell.addEventListener('click', () => {
+                if (st.status === 'known') {
+                    // Re-queue
+                    state[l] = { status: 'learning', reps: 0, nextDueIn: 0 };
+                    save(state);
+                    render();
+                }
+            });
+            grid.appendChild(cell);
+        });
+    }
+
+    function labelOf(st) {
+        if (st.status === 'known')    return 'connue';
+        if (st.status === 'learning') return 'en cours';
+        return 'nouveau';
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        if (confirm('Tout réinitialiser ? Toutes les lettres reviennent à "nouveau".')) {
+            localStorage.removeItem(KEY);
+            render();
+        }
+    });
+
+    render();
+})();
+</script>
+{% endblock %}
