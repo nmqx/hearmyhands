@@ -1,5 +1,5 @@
 // HMH Quiz — mode reconnaissance (3 sous-modes : hardcore / 10sec / survival)
-// Leaderboards locaux (localStorage), top 10 par mode.
+// Leaderboards persistés côté serveur (SQLite), top 10 par mode.
 (function () {
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWY Z".replace(/\s/g, "").split("");
@@ -7,30 +7,40 @@ const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWY Z".replace(/\s/g, "").split("");
 const LETTERS_WITH_VIDEO = LETTERS.filter(l => l !== 'X');
 
 const STORE_PSEUDO = 'hmh-quiz-pseudo';
-const STORE_LB     = (mode) => `hmh-quiz-lb-${mode}`;
 const LB_LIMIT     = 10;
 
-// ─── Utils localStorage ───────────────────────────────────────────────────
-function loadLB(mode) {
-    try { return JSON.parse(localStorage.getItem(STORE_LB(mode))) || []; }
-    catch (e) { return []; }
-}
-function saveLB(mode, entries) {
-    try { localStorage.setItem(STORE_LB(mode), JSON.stringify(entries)); } catch (e) {}
-}
-// Pour Hardcore/10sec : score = nombre de bonnes réponses. Plus haut = mieux.
-// Pour Survival     : score = nombre de lettres survies. Plus haut = mieux.
-// On stocke aussi un timestamp pour départager les ex aequo.
-function pushScore(mode, pseudo, score, extra) {
-    const lb = loadLB(mode);
-    lb.push({ pseudo: pseudo || 'Anonyme', score, ts: Date.now(), ...(extra || {}) });
-    lb.sort((a, b) => (b.score - a.score) || (a.ts - b.ts));
-    const trimmed = lb.slice(0, LB_LIMIT);
-    saveLB(mode, trimmed);
-    return trimmed.findIndex(e => e.ts === Date.now()
-                                 || (e.score === score && e.pseudo === (pseudo || 'Anonyme')));
+// ─── API serveur ──────────────────────────────────────────────────────────
+async function apiLeaderboard(mode) {
+    try {
+        const r = await fetch(`/api/quiz/leaderboard/${mode}?limit=${LB_LIMIT}`);
+        if (!r.ok) throw new Error(`status ${r.status}`);
+        const j = await r.json();
+        return j.entries || [];
+    } catch (e) {
+        console.warn('[quiz] leaderboard fetch failed:', e);
+        return null;  // null = échec réseau (vs [] = vide)
+    }
 }
 
+async function apiSubmitScore(mode, pseudo, score) {
+    try {
+        const r = await fetch('/api/quiz/score', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ mode, pseudo, score }),
+        });
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error(err.error || `status ${r.status}`);
+        }
+        return await r.json();   // { ok: true, rank, pseudo, score }
+    } catch (e) {
+        console.warn('[quiz] submit failed:', e);
+        return { ok: false, error: e.message };
+    }
+}
+
+// ─── Pseudo (cache UX uniquement) ─────────────────────────────────────────
 function getPseudo() {
     return localStorage.getItem(STORE_PSEUDO) || '';
 }
@@ -47,33 +57,41 @@ function initLanding() {
         pseudoInput.addEventListener('blur',  () => setPseudo(pseudoInput.value));
     }
 
-    // Best score par mode sur les cartes
-    ['hardcore', '10sec', 'survival'].forEach(mode => {
-        const el = document.querySelector(`[data-mode-best="${mode}"]`);
-        if (!el) return;
-        const lb = loadLB(mode);
-        if (!lb.length) { el.textContent = ''; return; }
-        const top = lb[0];
-        const unit = mode === 'survival' ? 'lettres' : '/ 10';
-        el.innerHTML = `Meilleur : <strong>${top.score} ${unit}</strong> · ${escapeHtml(top.pseudo)}`;
-    });
-
-    // Leaderboards
-    renderLB('hardcore', 'lbHardcore', s => `${s} / 10`);
-    renderLB('10sec',    'lb10sec',    s => `${s} / 10`);
-    renderLB('survival', 'lbSurvival', s => `${s} lettres`);
+    // Fetch les 3 leaderboards en parallèle
+    Promise.all(['hardcore', '10sec', 'survival'].map(apiLeaderboard))
+        .then(([hc, ts, sv]) => {
+            updateModeBest('hardcore', hc, false);
+            updateModeBest('10sec',    ts, false);
+            updateModeBest('survival', sv, true);
+            renderLB('lbHardcore', hc, s => `${s} / 10`);
+            renderLB('lb10sec',    ts, s => `${s} / 10`);
+            renderLB('lbSurvival', sv, s => `${s} lettres`);
+        });
 }
 
-function renderLB(mode, listId, fmt) {
+function updateModeBest(mode, entries, isSurvival) {
+    const el = document.querySelector(`[data-mode-best="${mode}"]`);
+    if (!el) return;
+    if (entries === null) { el.textContent = 'Leaderboard indisponible'; return; }
+    if (!entries.length)  { el.textContent = 'Aucun score'; return; }
+    const top = entries[0];
+    const unit = isSurvival ? 'lettres' : '/ 10';
+    el.innerHTML = `Meilleur : <strong>${top.score} ${unit}</strong> · ${escapeHtml(top.pseudo)}`;
+}
+
+function renderLB(listId, entries, fmt) {
     const ol = document.getElementById(listId);
     if (!ol) return;
-    const lb = loadLB(mode);
     ol.innerHTML = '';
-    if (!lb.length) {
+    if (entries === null) {
+        ol.innerHTML = '<li class="quiz-lb-empty">Leaderboard indisponible (serveur).</li>';
+        return;
+    }
+    if (!entries.length) {
         ol.innerHTML = '<li class="quiz-lb-empty">Aucun score encore — sois le premier !</li>';
         return;
     }
-    lb.forEach((e, i) => {
+    entries.forEach((e, i) => {
         const li = document.createElement('li');
         li.innerHTML = `
             <span class="quiz-lb-rank">#${i + 1}</span>
@@ -384,34 +402,63 @@ function initGame() {
     }
 
     // ─── Fin de partie ────────────────────────────────────────────────────
+    const endSubmitForm   = document.getElementById('endSubmitForm');
+    const endPseudoInput  = document.getElementById('endPseudo');
+    const endSubmitBtn    = document.getElementById('endSubmitBtn');
+    const endSubmitStatus = document.getElementById('endSubmitStatus');
+
     function endGame() {
         clearTimeout(questionTimerId);
         cancelAnimationFrame(rafTimerId);
         gameCard.hidden = true;
         endCard.hidden = false;
 
-        const pseudo = getPseudo() || 'Anonyme';
-        const totalLabel = mode === 'survival' ? 'lettres' : '/ 10';
         endTitle.textContent = mode === 'survival'
             ? `Tu as tenu ${score} lettres`
             : `Score : ${score} / 10`;
-        endSub.textContent  = `Mode ${cfg.label} · pseudo "${pseudo}"`;
+        endSub.textContent  = `Mode ${cfg.label}`;
 
-        // Save + rank
-        const lb = loadLB(mode);
-        const entry = { pseudo, score, ts: Date.now() };
-        lb.push(entry); lb.sort((a, b) => (b.score - a.score) || (a.ts - b.ts));
-        const trimmed = lb.slice(0, LB_LIMIT);
-        saveLB(mode, trimmed);
-        const rank = trimmed.findIndex(e => e.ts === entry.ts) + 1;
-        if (rank > 0 && rank <= LB_LIMIT) {
-            endRank.innerHTML = `<i class="fa-solid fa-medal"></i> Nouveau top ! Rang <strong>#${rank}</strong>`;
+        // Pré-remplit avec le pseudo connu (s'il y en a un)
+        endPseudoInput.value = getPseudo();
+        endRank.hidden = true;
+        endSubmitStatus.textContent = '';
+        endSubmitStatus.className = 'quiz-end-status';
+        endSubmitBtn.disabled = false;
+        endSubmitForm.hidden = false;
+        // Focus pour que l'utilisateur puisse taper son pseudo tout de suite
+        setTimeout(() => endPseudoInput.focus(), 100);
+    }
+
+    // Submit du score au serveur
+    endSubmitForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pseudo = (endPseudoInput.value || '').trim() || 'Anonyme';
+        setPseudo(pseudo);
+        endSubmitBtn.disabled = true;
+        endSubmitStatus.textContent = 'Envoi en cours…';
+        endSubmitStatus.className = 'quiz-end-status';
+
+        const resp = await apiSubmitScore(mode, pseudo, score);
+        if (!resp.ok) {
+            endSubmitStatus.textContent = `Échec : ${resp.error || 'erreur réseau'}. Réessaie ?`;
+            endSubmitStatus.className = 'quiz-end-status bad';
+            endSubmitBtn.disabled = false;
+            return;
+        }
+
+        endSubmitStatus.textContent = `Enregistré ! ${resp.pseudo} · ${resp.score}`;
+        endSubmitStatus.className = 'quiz-end-status ok';
+        endSubmitForm.hidden = true;
+
+        endRank.hidden = false;
+        if (resp.rank && resp.rank <= LB_LIMIT) {
+            endRank.innerHTML = `<i class="fa-solid fa-medal"></i> Top ${LB_LIMIT} ! Rang <strong>#${resp.rank}</strong>`;
             endRank.className = 'quiz-end-rank good';
         } else {
-            endRank.innerHTML = `Pas dans le top ${LB_LIMIT} cette fois.`;
+            endRank.innerHTML = `Rang global <strong>#${resp.rank || '?'}</strong> — pas dans le top ${LB_LIMIT} cette fois.`;
             endRank.className = 'quiz-end-rank';
         }
-    }
+    });
 
     playAgainBtn.addEventListener('click', () => {
         endCard.hidden = true;

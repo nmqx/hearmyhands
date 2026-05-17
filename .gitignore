@@ -23,6 +23,11 @@ Thumbs.db
 # Logs
 *.log
 
+# SQLite (leaderboard quiz, persistant côté VM)
+*.db
+*.db-shm
+*.db-wal
+
 #Dataset
 Modèle_Ocarina/dataset/
 Ressources/
