@@ -33,22 +33,32 @@ function initTranslate() {
     const skelCtx        = skeletonCanvas.getContext('2d');
     const thresholdCanvas= document.getElementById('thresholdCanvas');
     const thCtx          = thresholdCanvas ? thresholdCanvas.getContext('2d') : null;
+    const thresholdControl = document.getElementById('thresholdControl');
+    const thresholdSlider  = document.getElementById('thresholdSlider');
+    const thresholdValue   = document.getElementById('thresholdValue');
     const videoContainer = video.closest('.video-container');
     const placeholderEl  = videoContainer ? videoContainer.querySelector('.video-placeholder') : null;
 
-    // ── Détecteur de seuil (gating de l'envoi sur position des mains) ────────
-    // 👇 RÉGLAGE — hauteur du seuil, fraction de la hauteur visible.
-    //    0 = tout en haut, 1 = tout en bas. 0.40 = à 40% depuis le haut.
-    const THRESHOLD_Y_RATIO = 0.40;
-    // Tolérance : si les mains repassent sous le seuil pendant ce délai,
-    // on reste armé (évite le clignotement entre frames).
-    const ABSENCE_GRACE_MS  = 500;
+    // ── Seuil (mode dynamique uniquement) ────────────────────────────────────
+    // Hauteur du seuil = fraction de la hauteur visible. 0 = haut, 1 = bas.
+    // Modifiable en live via le slider — valeur stockée dans une let (pas const).
+    // Persisté en localStorage pour retrouver la même valeur entre sessions.
+    let thresholdRatio = parseFloat(localStorage.getItem('hmh-th-ratio')) || 0.40;
+    // Debounce avant de considérer que la main est définitivement redescendue.
+    const ABSENCE_GRACE_MS = 500;
 
-    let armed = false;
-    let lastSeenAboveTs = 0;     // dernier instant où une main était au-dessus
-    let mpHands = null;          // instance MediaPipe Hands
-    let lastHandTopY = null;     // Y normalisé [0..1] de la landmark la plus haute
-    let mpHandsBusy = false;     // évite les appels send() qui se chevauchent
+    // État du détecteur — actif uniquement en mode dynamique.
+    let handAboveNow      = false;   // main au-dessus du seuil à cet instant
+    let lastSeenAboveTs   = 0;       // dernier tick où on a vu une main au-dessus
+    let pendingSign       = null;    // dernier sign GRU valide reçu, en attente
+    let pendingSignConf   = 0;       // sa confidence (pour gagner les ex-aequo)
+    // MediaPipe Hands client-side : on l'utilise UNIQUEMENT pour suivre la
+    // position des landmarks sans dépendre des réponses serveur (utile aussi
+    // si jamais la latence réseau augmente). Le squelette dessiné à l'écran
+    // continue lui de venir du backend (qui retourne hands + skeleton).
+    let mpHands = null;
+    let mpHandsBusy = false;
+    let lastHandTopY = null;         // Y normalisé [0..1] de la landmark la plus haute
 
     const startBtn         = document.getElementById('startBtn');
     const togglePredBtn    = document.getElementById('togglePredBtn');
@@ -185,8 +195,30 @@ function initTranslate() {
         // Reset des accumulateurs pour éviter de mélanger les deux pipelines
         lastLetter = null; stableCount = 0;
         lastSign = null;   lastSignTime = 0;
+        pendingSign = null; pendingSignConf = 0;
+        handAboveNow = false;
         if (currentLetterEl) currentLetterEl.textContent = '-';
+        // Affiche le slider du seuil uniquement en mode dynamique.
+        if (thresholdControl) thresholdControl.hidden = isStatic;
+        if (isStatic) clearThresholdCanvas();
     }
+    // Slider de seuil : maj live de la position de la ligne.
+    if (thresholdSlider) {
+        const syncSliderUI = () => {
+            const pct = Math.round(thresholdRatio * 100);
+            thresholdSlider.value = pct;
+            if (thresholdValue) thresholdValue.textContent = `${pct} %`;
+        };
+        syncSliderUI();
+        thresholdSlider.addEventListener('input', () => {
+            thresholdRatio = parseInt(thresholdSlider.value, 10) / 100;
+            if (thresholdValue) thresholdValue.textContent = `${thresholdSlider.value} %`;
+            try { localStorage.setItem('hmh-th-ratio', String(thresholdRatio)); } catch (e) {}
+            // Redraw immédiat (sans attendre le prochain tick RAF)
+            if (mode === 'dynamic') drawThreshold(handAboveNow);
+        });
+    }
+
     if (modeBtn) {
         modeBtn.addEventListener('click', () => {
             mode = (mode === 'static') ? 'dynamic' : 'static';
@@ -200,9 +232,9 @@ function initTranslate() {
     // Les ack peuvent revenir dans le désordre — on n'applique que la prédiction
     // la plus récente via un compteur de séquence.
     function sendFrame() {
-        // Gating par le détecteur de seuil : tant qu'aucune main n'est passée
-        // au-dessus de la ligne (avec tolérance de 500 ms), on n'envoie rien.
-        if (!armed) return;
+        // Envoi continu — le squelette doit s'afficher en permanence, et
+        // le mode statique fait son inférence non-stop. Le seuil n'agit
+        // QUE sur le commit du sign en mode dynamique, pas sur l'envoi.
         if (!video.srcObject || inFlightCount >= MAX_IN_FLIGHT) return;
         const vw = video.videoWidth, vh = video.videoHeight;
         if (!vw || !vh) return;
@@ -250,20 +282,33 @@ function initTranslate() {
         }
         alignCanvasWithVideo();
         skelCtx.clearRect(0, 0, w, h);
+        // Le squelette est TOUJOURS dessiné (même quand la main est sous le seuil).
         if (data.skeleton && data.skeleton.length >= 9) drawSkeleton(data.skeleton);
         if (data.hands && data.hands.length)            drawHands(data.hands);
 
+        // NB : lastHandTopY est mis à jour par MediaPipe Hands client-side
+        // (voir onHandsResults), pas ici. Ça évite de dépendre de la latence
+        // réseau pour détecter le passage au-dessus du seuil.
+
         if (mode === 'static') {
+            // Statique : MLP en continu, seuil de confiance + 10 frames stables.
             const conf = data.confidence ?? 0;
             const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
             updateLetter(letter);
         } else {
-            // Dynamique : on n'affiche / n'accumule que les signes du GRU
+            // Dynamique : on stocke la dernière prédiction GRU valide, on ne
+            // commit PAS tout de suite. handleSignTransition() commitera quand
+            // la main repasse sous le seuil (geste terminé).
             const sConf = data.sign_confidence ?? 0;
-            if (currentLetterEl) currentLetterEl.textContent = data.sign ?? '-';
             if (data.sign && sConf >= MIN_SIGN_CONFIDENCE) {
-                handleSign(data.sign);
+                if (sConf >= pendingSignConf) {
+                    pendingSign = data.sign;
+                    pendingSignConf = sConf;
+                }
             }
+            // Affichage live : on montre la prédiction "tentative" en cours,
+            // mais elle n'est ajoutée au mot qu'à la descente sous le seuil.
+            if (currentLetterEl) currentLetterEl.textContent = data.sign ?? '-';
         }
     }
 
@@ -346,13 +391,18 @@ function initTranslate() {
         video.addEventListener(ev, alignThresholdCanvas);
     });
 
+    function clearThresholdCanvas() {
+        if (!thCtx || !thresholdCanvas) return;
+        thCtx.clearRect(0, 0, thresholdCanvas.width, thresholdCanvas.height);
+    }
+
     function drawThreshold(active) {
         if (!thCtx) return;
         const w = thresholdCanvas.width, h = thresholdCanvas.height;
         if (!w || !h) return;
-        const y = h * THRESHOLD_Y_RATIO;
+        const y = h * thresholdRatio;
         thCtx.clearRect(0, 0, w, h);
-        // Ligne en pointillés, verte si armé, rouge sinon
+        // Ligne en pointillés, verte si la main est au-dessus, rouge sinon
         thCtx.lineWidth = 3;
         thCtx.strokeStyle = active ? '#32ff78' : '#ff5078';
         thCtx.setLineDash([12, 8]);
@@ -364,7 +414,10 @@ function initTranslate() {
         thCtx.setLineDash([]);
         thCtx.font = 'bold 14px sans-serif';
         thCtx.fillStyle = active ? '#32ff78' : '#ff5078';
-        thCtx.fillText(active ? '● Capture en cours' : '○ Lève la main pour commencer', 10, y - 8);
+        const label = active
+            ? '● Signe en cours — redescends pour valider'
+            : '○ Lève la main au-dessus pour commencer un signe';
+        thCtx.fillText(label, 10, y - 8);
     }
 
     function onHandsResults(results) {
@@ -397,7 +450,8 @@ function initTranslate() {
         mpHands.onResults(onHandsResults);
     }
 
-    // Boucle RAF : pump frames dans Hands + maj armed + dessine la ligne
+    // Boucle RAF : pump frames dans MediaPipe Hands, gère le seuil
+    // (uniquement en mode dynamique) et commit le sign à la descente.
     async function trackLoop() {
         if (mpHands && video.readyState >= 2 && video.videoWidth && !mpHandsBusy) {
             mpHandsBusy = true;
@@ -406,17 +460,39 @@ function initTranslate() {
             mpHandsBusy = false;
         }
 
+        // En mode statique le seuil ne fait rien : on efface le canvas et go.
+        if (mode !== 'dynamic') {
+            clearThresholdCanvas();
+            // Reset l'état pour repartir propre quand on retourne en dynamique
+            handAboveNow = false;
+            pendingSign = null;
+            pendingSignConf = 0;
+            requestAnimationFrame(trackLoop);
+            return;
+        }
+
+        // Mode dynamique : on suit la position de la main.
         const now = performance.now();
-        if (lastHandTopY !== null && lastHandTopY < THRESHOLD_Y_RATIO) {
+        const above = (lastHandTopY !== null && lastHandTopY < thresholdRatio);
+
+        if (above) {
             lastSeenAboveTs = now;
         }
-        const shouldArm = (now - lastSeenAboveTs) < ABSENCE_GRACE_MS;
-        if (shouldArm !== armed) {
-            armed = shouldArm;
-            // À l'arrêt, on nettoie aussi le skeleton/lettre (sinon ça reste figé)
-            if (!armed) clearSkeleton();
+        // Tolérance ABSENCE_GRACE_MS avant de considérer le geste fini.
+        const stillAbove = above || (now - lastSeenAboveTs) < ABSENCE_GRACE_MS;
+
+        // Transition au-dessus → en-dessous (debouncée) = geste terminé.
+        // C'est le moment où on commit la dernière prédiction GRU reçue.
+        if (handAboveNow && !stillAbove) {
+            if (pendingSign) {
+                handleSign(pendingSign);
+            }
+            pendingSign = null;
+            pendingSignConf = 0;
         }
-        drawThreshold(armed);
+        handAboveNow = stillAbove;
+
+        drawThreshold(handAboveNow);
         requestAnimationFrame(trackLoop);
     }
 
