@@ -138,31 +138,20 @@ let loadSeq = 0;
 
 function loadExample(letter) {
     const src = `/static/learn/${letter}.mp4?v=${VIDEO_VERSION}`;
-    const mySeq = ++loadSeq;
     exampleMissing.hidden = true;
     exampleVideo.style.display = '';
-    exampleVideo.controls = true;          // user can click play si l'autoplay échoue
-    exampleVideo.muted = true;             // ré-affirme muted (requis pour autoplay)
+    exampleVideo.muted = true;
+    exampleVideo.autoplay = true;
+    exampleVideo.loop = true;
+    exampleVideo.playsInline = true;
+    exampleVideo.controls = true;  // garde controls visibles si autoplay refusé
 
-    exampleVideo.onerror = () => {
-        if (mySeq !== loadSeq) return;
-        if (!exampleVideo.src || exampleVideo.src === window.location.href) return;
-        exampleVideo.style.display = 'none';
-        exampleMissing.hidden = false;
-    };
-    const tryPlay = () => {
-        if (mySeq !== loadSeq) return;
-        exampleVideo.play().catch((err) => console.warn('[learn] autoplay refusé:', err && err.name));
-    };
-    exampleVideo.onloadedmetadata = tryPlay;
-    exampleVideo.oncanplay        = tryPlay;
-    exampleVideo.onloadeddata     = tryPlay;
-
+    // Set src + load → l'attribut autoplay déclenche la lecture quand prêt.
     exampleVideo.src = src;
     exampleVideo.load();
-    // Tentative immédiate en plus des events
-    setTimeout(tryPlay, 100);
-    setTimeout(tryPlay, 500);
+    // Tentative de play, au cas où autoplay seul ne suffit pas
+    const p = exampleVideo.play();
+    if (p && p.catch) p.catch(err => console.warn('[learn] play refusé:', err && err.name));
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
