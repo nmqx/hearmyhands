@@ -46,7 +46,8 @@ class _OcarinaGRU(nn.Module):
 
 
 class SignClassifier:
-    SEQ_LEN = 60
+    # Doit rester aligné avec MAX_FRAMES de Modèle_Ocarina/Train.py
+    SEQ_LEN = 45
     INPUT_SIZE = 42
 
     def __init__(self, model: _OcarinaGRU, classes: list[str], device: torch.device):
