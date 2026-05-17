@@ -211,7 +211,9 @@ def learn_play(letter):
         "</script>"
         "</body></html>"
     )
-    return Response(html, mimetype="text/html")
+    resp = Response(html, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @app.route("/healthz")
