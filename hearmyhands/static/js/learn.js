@@ -133,14 +133,13 @@ function resetValidation() {
 }
 
 function loadExample(letter) {
-    // On laisse Chrome rendre la vidéo dans son lecteur natif via un <iframe>.
-    // C'est la seule façon fiable qu'on a trouvée : la même URL .mp4 ouverte
-    // directement dans le navigateur joue parfaitement, alors qu'un <video>
-    // ajouté à la page restait noir (peut-être conflit GPU avec la webcam à
-    // côté). Pas d'autoplay : l'utilisateur clique play.
+    // L'iframe pointe sur /learn/play/<letter> : une mini-page wrapper qui
+    // joue la vidéo en boucle (autoplay+loop+muted). Le <video> dans son
+    // propre document iframe se rend correctement, alors qu'embedded
+    // directement dans /learn/cards il restait noir.
     exampleMissing.hidden = true;
     exampleFrame.style.display = '';
-    exampleFrame.src = `/api/video/${letter}`;
+    exampleFrame.src = `/learn/play/${letter}`;
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
