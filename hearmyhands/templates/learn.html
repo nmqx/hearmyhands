@@ -2,15 +2,24 @@
 
 {% block content %}
 <div class="main-wrapper reveal">
-    <div class="glass-card text-center" style="padding: 4rem 2rem;">
-        <i class="fa-solid fa-owl" style="font-size: 4rem; color: var(--secondary); margin-bottom: 20px;"></i>
-        <h2>Mode Apprentissage</h2>
-        <p style="margin: 20px 0; color: #555; font-size: 1.1rem;">Bientôt, vous pourrez apprendre l'alphabet LSF ici, étape par étape, façon Duolingo !</p>
-        
-        <div style="background: #eee; height: 20px; border-radius: 10px; width: 60%; margin: 0 auto; overflow: hidden;">
-            <div style="background: var(--secondary); height: 100%; width: 30%; border-radius: 10px;"></div>
-        </div>
-        <p style="font-size: 0.8rem; color: #888; margin-top: 10px;">Module en cours de développement...</p>
+    <div class="learn-hero">
+        <h2 class="learn-hero-title">Apprends la <span>LSF</span></h2>
+        <p class="learn-hero-lead">Maîtrise l'alphabet en autonomie. La caméra vérifie ton geste en temps réel contre une vidéo modèle.</p>
+    </div>
+
+    <div class="learn-modes">
+        <a href="{{ url_for('learn_cards') }}" class="learn-mode-card glass-card">
+            <i class="fa-solid fa-layer-group learn-mode-icon"></i>
+            <h3>Cartes</h3>
+            <p>Les 26 lettres une par une, façon Anki. Tu vois la vidéo de référence à côté de ta webcam, et tu évalues ton apprentissage : <em>je connais</em>, <em>j'apprends</em>, <em>à revoir</em>.</p>
+            <span class="learn-mode-cta">Commencer <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        <a href="{{ url_for('learn_library') }}" class="learn-mode-card glass-card">
+            <i class="fa-solid fa-book-open learn-mode-icon"></i>
+            <h3>Bibliothèque</h3>
+            <p>Toutes tes lettres et leur statut. Remets celles que tu connais en révision quand tu veux, ou réinitialise pour recommencer.</p>
+            <span class="learn-mode-cta">Ouvrir <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
     </div>
 </div>
 {% endblock %}

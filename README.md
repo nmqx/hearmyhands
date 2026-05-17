@@ -1,15 +1,21 @@
 # HearMyHands
 
+### 🌐 Site en ligne — **<https://hearmyhands.asia>**
+
 > Projet **PeiP 2A — Polytech** · Année 2025-2026
 > Traducteur de Langue des Signes Française (LSF) en temps réel via webcam.
 > Contact équipe : **hearmyhands.polytech@gmail.com**
+
+**Accès direct :**
+- [`/translate`](https://hearmyhands.asia/translate) — traduction LSF temps réel via la webcam
+- [`/learn`](https://hearmyhands.asia/learn) — mode apprentissage Anki des 26 lettres
 
 ## Crédits
 
 **Équipe HearMyHands** (12 membres) :
 
 - **Marius DEMONFAUCON** : Coordinateur / Correspondant
-- Dalyan PENISSON · Thibault CAPEDEVIELLE · Maxime D'AURIA · Killian SEVALLE
+- Dalyan PENISSON · Thibault CAPDEVIELLE · Maxime D'AURIA · Killian SEVALLE
 - Titouan DESAILLY · Arthur PIERRE · Nestor CORABOEUF · Louna PEJOT
 - François DELAUNAY · Kaelig LERAY · Nathan DIZY
 
@@ -17,8 +23,8 @@ Organisée en trois pôles techniques :
 
 | Pôle | Rôle |
 | --- | --- |
-| **Vision** (`image_to_Squelette` / *Gepetto*) | Détection du squelette corps + mains |
-| **Traduction** (`squelette_to_mot` / *Pinocchio*) | Classification des signes en lettres/mots |
+| **Vision** (`image_to_Squelette` ) | Détection du squelette corps + mains |
+| **Traduction** (`squelette_to_mot` ) | Classification des signes en lettres/mots |
 | **Application & UI** | Interface web, intégration, portage |
 
 **Encadrants — Laboratoire LS2N / Polytech Nantes**

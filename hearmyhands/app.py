@@ -13,11 +13,23 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import time
 from collections import deque
 from threading import Lock
 
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
+
+try:
+    import psutil  # type: ignore
+    psutil.cpu_percent(interval=None)                  # baseline (premier appel = 0)
+    psutil.cpu_percent(interval=None, percpu=True)     # baseline per-core
+    _proc = psutil.Process()
+    _proc.cpu_percent(interval=None)
+    _PSUTIL = True
+except ImportError:
+    _PSUTIL = False
+    _proc = None
 
 # Make HmH/ importable regardless of where this is launched from
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -37,10 +49,11 @@ SIGN_EVERY_N    = 5
 TRAIN_W, TRAIN_H = 640, 480
 
 app = Flask(__name__)
+# async_mode auto: utilise eventlet/gevent en prod (gunicorn) sinon threading (dev werkzeug)
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
-    async_mode="threading",
+    async_mode=os.environ.get("SOCKETIO_ASYNC_MODE") or None,
     max_http_buffer_size=MAX_FRAME_BYTES,
 )
 
@@ -129,11 +142,121 @@ def learn():
     return render_template("learn.html")
 
 
+@app.route("/learn/cards")
+@app.route("/learn/cards/<letter>")
+def learn_cards(letter=None):
+    # La lettre dans l'URL est lue côté JS (window.location). Côté serveur
+    # on rend juste le même template — le client gère le routing.
+    return render_template("learn_cards.html")
+
+
+@app.route("/learn/library")
+def learn_library():
+    return render_template("learn_library.html")
+
+
+@app.route("/videotest")
+def videotest():
+    return render_template("videotest.html")
+
+
+@app.route("/api/video/<letter>")
+def api_video(letter):
+    """CDN local pour les vidéos d'apprentissage.
+
+    Sert le fichier .mp4 en bypassant le système static de Flask et le cache
+    Cloudflare. Appelé depuis /learn/play/<letter> (wrapper HTML qui ajoute
+    autoplay+loop).
+    """
+    from flask import send_from_directory, abort
+    letter = letter.upper()
+    if not (len(letter) == 1 and 'A' <= letter <= 'Z'):
+        abort(404)
+    video_dir = os.path.join(_HERE, "static", "learn")
+    if not os.path.exists(os.path.join(video_dir, f"{letter}.mp4")):
+        abort(404)
+    resp = send_from_directory(video_dir, f"{letter}.mp4", mimetype="video/mp4")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@app.route("/learn/play/<letter>")
+def learn_play(letter):
+    """Mini-page wrapper qui joue la vidéo en boucle dans un <video>.
+
+    On l'utilise comme src d'un <iframe> côté /learn/cards : le navigateur
+    rend la vidéo dans son contexte propre (qui marche, contrairement au
+    <video> embedded dans la page principale qui restait noir).
+    """
+    from flask import abort, Response
+    letter = letter.upper()
+    if not (len(letter) == 1 and 'A' <= letter <= 'Z'):
+        abort(404)
+    html = (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<style>html,body{margin:0;background:#000;height:100%;overflow:hidden}"
+        "video{width:100%;height:100%;object-fit:cover;display:block}</style>"
+        "</head><body>"
+        # NB : pas d'attribut loop. Sur certains decoders Chrome, loop=true
+        # empêche l'event 'ended' de se déclencher mais ne replay pas non
+        # plus (la vidéo finit à 0:02/0:02 avec play visible). On gère la
+        # boucle manuellement via JS pour être sûr.
+        f"<video id='v' src='/api/video/{letter}' autoplay muted playsinline controls></video>"
+        "<script>"
+        "var v=document.getElementById('v');"
+        "v.addEventListener('ended',function(){v.currentTime=0;v.play();});"
+        # ceinture + bretelles : on relance aussi quelques frames avant la fin
+        "v.addEventListener('timeupdate',function(){"
+        "  if(v.duration && v.duration - v.currentTime < 0.15){"
+        "    v.currentTime=0; v.play();"
+        "  }"
+        "});"
+        "</script>"
+        "</body></html>"
+    )
+    resp = Response(html, mimetype="text/html")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.route("/healthz")
 def healthz():
     if _engine is not None:
         return _engine.health()
     return {"backend": "http", "model_api": MODEL_API_URL}
+
+
+@app.route("/monitor")
+def monitor():
+    return render_template("monitor.html")
+
+
+@app.route("/stats")
+def stats():
+    if not _PSUTIL:
+        return {"error": "psutil not installed"}, 503
+    mem  = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+    load = os.getloadavg()
+    return {
+        "ts":            time.time(),
+        "cpu_total":     psutil.cpu_percent(interval=None),
+        "cpu_per_core":  psutil.cpu_percent(interval=None, percpu=True),
+        "cpu_count":     psutil.cpu_count(),
+        "mem_total":     mem.total,
+        "mem_used":      mem.used,
+        "mem_percent":   mem.percent,
+        "disk_total":    disk.total,
+        "disk_used":     disk.used,
+        "disk_percent":  disk.percent,
+        "load_1":        load[0],
+        "load_5":        load[1],
+        "load_15":       load[2],
+        "uptime":        time.time() - psutil.boot_time(),
+        "app_rss":       _proc.memory_info().rss,
+        "app_cpu":       _proc.cpu_percent(interval=None),
+        "app_threads":   _proc.num_threads(),
+    }
 
 
 # ── Socket.IO ────────────────────────────────────────────────────────────────

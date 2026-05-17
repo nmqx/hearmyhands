@@ -18,28 +18,242 @@
 
 <!-- Section Qui Sommes-Nous -->
 <section id="about" class="about-section">
+
+    <!-- Intro -->
+    <div class="reveal about-intro">
+        <span class="section-eyebrow">À propos du projet</span>
+        <h2 class="section-title">Briser le silence, <span>main dans la main</span></h2>
+        <p class="section-lead">
+            En France, plus de <strong>5 millions de personnes</strong> sont touchées par un
+            handicap auditif, et moins de <strong>120 000</strong> utilisent réellement la
+            Langue des Signes Française au quotidien<sup>*</sup>. Entre les deux, un mur de
+            silence — que <strong>HearMyHands</strong> veut faire tomber, en traduisant la
+            LSF en texte en temps réel via une simple webcam, sans matériel spécialisé.
+        </p>
+    </div>
+
+    <!-- Stats banner -->
+    <div class="reveal stats-banner">
+        <div class="stat-pill">
+            <span class="stat-num">5,2&nbsp;M</span>
+            <span class="stat-lbl">personnes concernées en France</span>
+        </div>
+        <div class="stat-pill">
+            <span class="stat-num">&lt; 120&nbsp;k</span>
+            <span class="stat-lbl">locuteurs réguliers de la LSF</span>
+        </div>
+        <div class="stat-pill">
+            <span class="stat-num">26</span>
+            <span class="stat-lbl">lettres de l'alphabet LSF (statiques + dynamiques)</span>
+        </div>
+    </div>
+
+    <!-- Pipeline -->
     <div class="glass-card reveal">
-        <h2>Qui Sommes-Nous ?</h2>
-        <div class="about-grid">
-            <div class="about-text">
-                <p><strong>HearMyHands</strong> est un projet étudiant (PeiP 2A - 2025/2026) né d'une volonté forte : rendre la communication accessible à tous. Grâce à la vision par ordinateur, nous transformons les gestes en texte en temps réel.</p>
-                <p>Notre équipe travaille avec passion sur les réseaux de neurones pour créer un pont entre les personnes sourdes, malentendantes et entendantes.</p>
+        <h3 class="card-title"><i class="fa-solid fa-microchip"></i> Comment ça marche</h3>
+        <div class="pipeline">
+            <div class="pipeline-step">
+                <span class="step-num">1</span>
+                <i class="fa-solid fa-camera"></i>
+                <h4>Capture</h4>
+                <p>Ta webcam envoie ses frames en <strong>binaire</strong> via WebSocket à notre serveur, ~30 fps.</p>
             </div>
-            <div class="about-stats">
-                <div class="stat-item">
-                    <i class="fa-solid fa-code"></i>
-                    <span>Projet 2A</span>
-                </div>
-                <div class="stat-item">
-                    <i class="fa-solid fa-brain"></i>
-                    <span>IA Intégrée</span>
-                </div>
-                <div class="stat-item">
-                    <i class="fa-solid fa-hands-asl-interpreting"></i>
-                    <span>Temps Réel</span>
-                </div>
+            <i class="pipeline-arrow fa-solid fa-chevron-right"></i>
+            <div class="pipeline-step">
+                <span class="step-num">2</span>
+                <i class="fa-solid fa-person-rays"></i>
+                <h4>Squelette</h4>
+                <p>Notre modèle custom (<strong>CSPDarknet53</strong> + heatmaps + Soft-Argmax) prédit 9 points du haut du corps. <strong>MediaPipe Hands</strong> ajoute les 21 landmarks de chaque main, cropées autour des poignets.</p>
+            </div>
+            <i class="pipeline-arrow fa-solid fa-chevron-right"></i>
+            <div class="pipeline-step">
+                <span class="step-num">3</span>
+                <i class="fa-solid fa-language"></i>
+                <h4>Lettre &amp; mot</h4>
+                <p>Un <strong>MLP</strong> 42→30→23 pour les lettres statiques, et notre GRU temporel <strong><em>Ocarina</em></strong> sur 45 frames pour les signes en mouvement (J, Z, mots) — ~80% d'accuracy en validation.</p>
             </div>
         </div>
     </div>
+
+    <!-- Équipe -->
+    <div class="glass-card reveal" id="teamList">
+        <h3 class="card-title"><i class="fa-solid fa-users"></i> L'équipe</h3>
+        <p class="card-subtitle">Projet <strong>PeiP 2A · Polytech Nantes</strong> · Année 2025–2026 · <span class="team-hint-inline"><i class="fa-solid fa-hand-pointer"></i> clique un nom pour la bio</span></p>
+
+        <!-- Chef de projet -->
+        <div class="pole-card pole-lead">
+            <h4><i class="fa-solid fa-crown"></i> Chef de projet · Coordination</h4>
+            <ul class="pole-members">
+                <li data-name="Marius DEMONFAUCON" class="member-pill member-lead"><strong>Marius DEMONFAUCON</strong></li>
+            </ul>
+        </div>
+
+        <!-- 4 pôles principaux -->
+        <div class="team-poles-grid">
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-eye"></i> Pôle Vision <span class="pole-tag-inline">Modèle 1</span></h4>
+                <ul class="pole-members">
+                    <li data-name="Titouan DESAILLY" class="member-pill member-resp"><strong>Titouan DESAILLY</strong> · Responsable</li>
+                    <li data-name="Maxime D'AURIA" class="member-pill">Maxime D'AURIA</li>
+                    <li data-name="Thibault CAPDEVIELLE" class="member-pill">Thibault CAPDEVIELLE</li>
+                    <li data-name="François DELAUNAY" class="member-pill">François DELAUNAY</li>
+                </ul>
+            </div>
+
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-language"></i> Pôle Traduction <span class="pole-tag-inline">Modèle 2 · Ocarina</span></h4>
+                <ul class="pole-members">
+                    <li data-name="Killian SEVALLE" class="member-pill member-resp"><strong>Killian SEVALLE</strong> · Responsable</li>
+                    <li data-name="Dalyan PENISSON" class="member-pill">Dalyan PENISSON</li>
+                    <li data-name="Nathan DIZY"     class="member-pill">Nathan DIZY</li>
+                    <li data-name="Louna PEJOT"     class="member-pill">Louna PEJOT</li>
+                </ul>
+            </div>
+
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-window-maximize"></i> Pôle Interface &amp; Backend</h4>
+                <ul class="pole-members">
+                    <li data-name="Maxime D'AURIA" class="member-pill member-resp"><strong>Maxime D'AURIA</strong> · Responsable</li>
+                    <li data-name="Kaelig LERAY"   class="member-pill">Kaelig LERAY</li>
+                    <li data-name="François DELAUNAY" class="member-pill">François DELAUNAY</li>
+                </ul>
+            </div>
+
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-bullhorn"></i> Communication &amp; Direction artistique</h4>
+                <ul class="pole-members">
+                    <li data-name="Louna PEJOT"      class="member-pill member-resp"><strong>Louna PEJOT</strong> · Responsable</li>
+                    <li data-name="François DELAUNAY" class="member-pill">François DELAUNAY</li>
+                    <li data-name="Arthur PIERRE"    class="member-pill">Arthur PIERRE · CM</li>
+                    <li data-name="Kaelig LERAY"     class="member-pill">Kaelig LERAY</li>
+                    <li data-name="Nestor CORABOEUF" class="member-pill">Nestor CORABOEUF</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Pôle outils -->
+        <div class="pole-card pole-tools">
+            <h4><i class="fa-solid fa-screwdriver-wrench"></i> Outils &amp; Organisation technique</h4>
+            <ul class="pole-members pole-members-inline">
+                <li data-name="Thibault CAPDEVIELLE" class="member-pill"><strong>Thibault CAPDEVIELLE</strong> · Responsable Git</li>
+                <li data-name="Maxime D'AURIA"      class="member-pill"><strong>Maxime D'AURIA</strong> · Responsable Git · Gérant Drive</li>
+                <li data-name="François DELAUNAY"   class="member-pill"><strong>François DELAUNAY</strong> · Admin Discord</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Encadrants + Stack -->
+    <div class="about-bottom">
+        <div class="glass-card reveal">
+            <h3 class="card-title"><i class="fa-solid fa-graduation-cap"></i> Encadrants</h3>
+            <p class="card-subtitle">Polytech Nantes &amp; Laboratoire <a href="https://www.ls2n.fr/" target="_blank" rel="noopener"><strong>LS2N</strong></a></p>
+            <ul class="people-list">
+                <li>
+                    <strong>Hélène Pérennou</strong>
+                    <em>Tutrice pédagogique · Prof. de mathématiques, Polytech Nantes</em>
+                </li>
+                <li>
+                    <strong>Matthieu Perreira Da Silva</strong>
+                    <em>Enseignant-chercheur <a href="https://www.ls2n.fr/" target="_blank" rel="noopener">LS2N</a> · accompagnement technique IA</em>
+                </li>
+            </ul>
+        </div>
+
+        <div class="glass-card reveal">
+            <h3 class="card-title"><i class="fa-solid fa-screwdriver-wrench"></i> Stack & données</h3>
+            <ul class="stack-list">
+                <li><i class="fa-solid fa-fire"></i> <span>PyTorch · CSPDarknet53 + heatmaps + Soft-Argmax</span></li>
+                <li><i class="fa-solid fa-hand"></i> <span>MediaPipe Hands (Google)</span></li>
+                <li><i class="fa-solid fa-clock-rotate-left"></i> <span>GRU temporel <em>Ocarina</em> (45 frames, 2 layers, hidden 128)</span></li>
+                <li><i class="fa-solid fa-database"></i> <span>Dataset interne segmenté (749 clips JSON COCO)</span></li>
+                <li><i class="fa-solid fa-server"></i> <span>Flask · Socket.IO · gunicorn + gevent</span></li>
+                <li><i class="fa-solid fa-cloud"></i> <span>Déployé sur GCP (Europe) · Cloudflare devant</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ODD -->
+    <div class="reveal odd-banner">
+        <span class="odd-label">Aligné avec les Objectifs de Développement Durable de l'ONU :</span>
+        <div class="odd-badges">
+            <a href="https://www.un.org/sustainabledevelopment/fr/education/" target="_blank" rel="noopener" class="odd-badge odd-4">
+                <i class="fa-solid fa-book-open-reader"></i> ODD 4 · Éducation de qualité
+            </a>
+            <a href="https://www.un.org/sustainabledevelopment/fr/inequality/" target="_blank" rel="noopener" class="odd-badge odd-10">
+                <i class="fa-solid fa-scale-balanced"></i> ODD 10 · Inégalités réduites
+            </a>
+        </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="reveal contact-line">
+        <p>
+            <sup>*</sup> Source : Drees, <em>Le handicap auditif en France</em>, et FNSF.
+            Pour nous écrire :
+            <a href="mailto:hearmyhands.polytech@gmail.com">hearmyhands.polytech@gmail.com</a>
+            · Code source :
+            <a href="https://github.com/nmqx/hearmyhands" target="_blank" rel="noopener"><i class="fa-brands fa-github"></i> github.com/nmqx/hearmyhands</a>
+        </p>
+    </div>
+
 </section>
+
+<!-- Modal Membre -->
+<div id="memberModal" class="member-modal" hidden>
+    <div class="member-modal-backdrop" data-close></div>
+    <div class="member-modal-content" role="dialog" aria-modal="true">
+        <button class="member-modal-close" data-close aria-label="Fermer">&times;</button>
+        <div class="member-modal-avatar">
+            <i class="fa-solid fa-user"></i>
+        </div>
+        <h3 id="memberModalName"></h3>
+        <p id="memberModalRole" class="member-modal-role"></p>
+        <p id="memberModalBio" class="member-modal-bio"></p>
+    </div>
+</div>
+
+<script>
+(function () {
+    const bios = {
+        "Marius DEMONFAUCON":   { role: "Chef de projet · Coordination",                          bio: "Coordinateur de l'équipe de 12. Pilote le planning, anime les réunions, tranche les arbitrages techniques entre pôles et fait le lien avec la tutrice pédagogique. A aussi développé l'outil de segmentation vidéo qui alimente le dataset du GRU Ocarina." },
+        "Titouan DESAILLY":     { role: "Responsable Pôle Vision (Modèle 1)",                     bio: "Responsable du pôle Vision. Pilote l'architecture du Modèle 1 (CSPDarknet53 + heatmaps + Soft-Argmax) et le pipeline d'entraînement pour les 9 points du haut du corps." },
+        "Maxime D'AURIA":       { role: "Responsable Pôle Interface & Backend · GCP · Responsable Git · Gérant Drive", bio: "Responsable du pôle Interface & Backend. Gère l'API modèle, a aussi mis la main au front. Administre l'infrastructure Google Cloud (instance, IP statique, quotas, accès), co-responsable Git avec Thibault, et gère le Google Drive de l'équipe. Membre du pôle Vision." },
+        "Thibault CAPDEVIELLE":{ role: "Pôle Vision · Responsable Git",                          bio: "Pôle Vision : travaille sur le backbone, la fonction de perte OKSLoss et la stabilisation Soft-Argmax. Responsable Git : valide les merge requests, gère les branches et l'historique du dépôt." },
+        "François DELAUNAY":    { role: "Pôle Vision · Pôle Interface & Backend · Communication · Admin Discord", bio: "Multi-pôle : contribue au pôle Vision (entraînement et pré-traitement), au pôle Interface & Backend et au pôle Communication. Administre le serveur Discord de l'équipe (rôles, channels, automation)." },
+        "Killian SEVALLE":      { role: "Responsable Pôle Traduction (Ocarina)",                  bio: "Responsable du pôle Traduction. Pilote le GRU temporel Ocarina (45 frames × 42 features) pour les signes dynamiques comme J et Z." },
+        "Dalyan PENISSON":      { role: "Pôle Traduction (Modèle 2)",                             bio: "Pôle Traduction : contribue au MLP statique 42→30→23 qui classe les lettres à partir des landmarks de main, et à l'entraînement du GRU." },
+        "Louna PEJOT":          { role: "Responsable Communication & DA · Pôle Traduction",       bio: "Responsable du pôle Communication & Direction artistique (identité visuelle, captation des vidéos LSF pour le dataset). Contribue aussi au pôle Traduction (entraînement et validation)." },
+        "Nestor CORABOEUF":     { role: "Communication & DA",                                     bio: "Pôle Communication & Direction artistique : relation associations, collecte de données vidéo. A signé la majorité des vidéos modèles utilisées dans le mode Apprentissage." },
+        "Nathan DIZY":          { role: "Pôle Traduction (Modèle 2)",                             bio: "Pôle Traduction : travaille sur la chaîne d'entraînement et la préparation des datasets de classification temporelle." },
+        "Kaelig LERAY":         { role: "Pôle Interface & Backend · Communication & DA",          bio: "Pôle Interface & Backend : direction artistique, conception UX, intégration front/back, déploiement (GCP Europe, Cloudflare, TLS, CI/CD). Contribue aussi à la communication et au trailer." },
+        "Arthur PIERRE":        { role: "Communication & DA · Community Manager",                 bio: "Community manager du projet, en charge des supports de communication, de la relation avec les associations LSF et de la captation des vidéos pour le dataset." },
+    };
+
+    const modal     = document.getElementById('memberModal');
+    const nameEl    = document.getElementById('memberModalName');
+    const roleEl    = document.getElementById('memberModalRole');
+    const bioEl     = document.getElementById('memberModalBio');
+    const teamList  = document.getElementById('teamList');
+
+    function open(name) {
+        const data = bios[name] || { role: "Membre de l'équipe", bio: "Bio à venir." };
+        nameEl.textContent = name;
+        roleEl.textContent = data.role;
+        bioEl.textContent  = data.bio;
+        modal.removeAttribute('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    function close() {
+        modal.setAttribute('hidden', '');
+        document.body.style.overflow = '';
+    }
+
+    teamList.addEventListener('click', e => {
+        const li = e.target.closest('li[data-name]');
+        if (li) open(li.dataset.name);
+    });
+    modal.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', close));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+})();
+</script>
 {% endblock %}

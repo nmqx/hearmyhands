@@ -26,3 +26,13 @@ Thumbs.db
 #Dataset
 Modèle_Ocarina/dataset/
 Ressources/
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.toc
+*.lof
+*.lot
+*.synctex.gz
+*.fls
+*.fdb_latexmk

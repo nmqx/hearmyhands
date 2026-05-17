@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HMH · monitor</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #0a0e1a; color: #e4eaf5; margin: 0; padding: 24px;
+    min-height: 100vh;
+  }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  h1 { color: #4a9eff; margin: 0; font-size: 1.4rem; font-weight: 600; }
+  small { color: #6b7891; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: #141b2d;
+    border: 1px solid #1f2940;
+    padding: 16px 18px;
+    border-radius: 10px;
+  }
+  .label {
+    font-size: .72rem; color: #6b7891;
+    text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 6px;
+  }
+  .value { font-size: 1.8rem; font-weight: 600; line-height: 1.2; }
+  .unit  { color: #6b7891; font-size: 1rem; font-weight: 400; margin-left: 4px; }
+  .bar   { background: #1f2940; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .bar > div {
+    background: linear-gradient(90deg, #4a9eff, #b65fff);
+    height: 100%; transition: width .35s ease;
+    width: 0%;
+  }
+  .bar.warn > div { background: linear-gradient(90deg, #ffb14a, #ff5c5c); }
+  .bar.crit > div { background: linear-gradient(90deg, #ff4a4a, #ff007a); }
+
+  .cores {
+    display: grid; gap: 4px; margin-top: 10px;
+    grid-template-columns: repeat(8, 1fr);
+  }
+  .core {
+    background: #1f2940; height: 28px; border-radius: 3px;
+    position: relative; overflow: hidden;
+  }
+  .core-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: #4a9eff; transition: height .25s ease;
+  }
+  .core-fill.warn { background: #ffb14a; }
+  .core-fill.crit { background: #ff4a4a; }
+  .core-label {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .65rem; color: #e4eaf5; text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 0; }
+  .meta-line { font-size: .8rem; color: #95a3bf; margin-top: 4px; }
+  a { color: #4a9eff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>HearMyHands · monitor</h1>
+  <small id="meta">connexion…</small>
+</header>
+
+<div class="grid">
+
+  <div class="card" style="grid-column: 1 / -1;">
+    <div class="label">CPU total (par cœur ci-dessous)</div>
+    <div><span class="value" id="cpu">—</span><span class="unit">%</span>
+         <span class="unit"> · <span id="cpu-count">—</span> cœurs</span></div>
+    <div class="bar" id="cpu-bar-wrap"><div id="cpu-bar"></div></div>
+    <div class="cores" id="cores"></div>
+  </div>
+
+  <div class="card">
+    <div class="label">RAM</div>
+    <div><span class="value" id="mem-used">—</span><span class="unit"> / <span id="mem-total">—</span> Gio</span></div>
+    <div class="bar" id="mem-bar-wrap"><div id="mem-bar"></div></div>
+    <div class="meta-line"><span id="mem-percent">—</span> %</div>
+  </div>
+
+  <div class="card">
+    <div class="label">App (gunicorn worker)</div>
+    <div><span class="value" id="app-cpu">—</span><span class="unit">% CPU</span></div>
+    <div class="meta-line">RSS <b id="app-rss">—</b> Mio · <b id="app-threads">—</b> threads</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Disque /</div>
+    <div><span class="value" id="disk-used">—</span><span class="unit"> / <span id="disk-total">—</span> Gio</span></div>
+    <div class="bar" id="disk-bar-wrap"><div id="disk-bar"></div></div>
+    <div class="meta-line"><span id="disk-percent">—</span> %</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Load avg (1 / 5 / 15 min)</div>
+    <div class="value" id="load" style="font-size: 1.3rem;">—</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Uptime VM</div>
+    <div class="value" id="uptime" style="font-size: 1.3rem;">—</div>
+  </div>
+
+</div>
+
+<p style="margin-top: 30px; font-size: .8rem; color: #6b7891;">
+  Polling /stats toutes les 1s · <a href="/translate">retour à l'app</a>
+</p>
+
+<script>
+  const fmtGiB = b => (b / 1073741824).toFixed(1);
+  const fmtMiB = b => (b / 1048576).toFixed(0);
+
+  function fmtUptime(s) {
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (d > 0) return `${d}j ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  }
+
+  function severity(v) { return v >= 90 ? 'crit' : v >= 70 ? 'warn' : ''; }
+
+  function setBar(wrapId, barId, v) {
+    document.getElementById(barId).style.width = Math.min(100, v) + '%';
+    document.getElementById(wrapId).className = 'bar ' + severity(v);
+  }
+
+  let cores = [];
+
+  async function tick() {
+    try {
+      const r = await fetch('/stats', { cache: 'no-store' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+
+      document.getElementById('cpu').textContent       = d.cpu_total.toFixed(0);
+      document.getElementById('cpu-count').textContent = d.cpu_count;
+      setBar('cpu-bar-wrap', 'cpu-bar', d.cpu_total);
+
+      document.getElementById('mem-used').textContent    = fmtGiB(d.mem_used);
+      document.getElementById('mem-total').textContent   = fmtGiB(d.mem_total);
+      document.getElementById('mem-percent').textContent = d.mem_percent.toFixed(0);
+      setBar('mem-bar-wrap', 'mem-bar', d.mem_percent);
+
+      document.getElementById('disk-used').textContent    = fmtGiB(d.disk_used);
+      document.getElementById('disk-total').textContent   = fmtGiB(d.disk_total);
+      document.getElementById('disk-percent').textContent = d.disk_percent.toFixed(0);
+      setBar('disk-bar-wrap', 'disk-bar', d.disk_percent);
+
+      document.getElementById('load').textContent =
+        `${d.load_1.toFixed(2)}  ${d.load_5.toFixed(2)}  ${d.load_15.toFixed(2)}`;
+
+      document.getElementById('app-cpu').textContent     = d.app_cpu.toFixed(0);
+      document.getElementById('app-rss').textContent     = fmtMiB(d.app_rss);
+      document.getElementById('app-threads').textContent = d.app_threads;
+
+      document.getElementById('uptime').textContent = fmtUptime(d.uptime);
+
+      // Per-core
+      const grid = document.getElementById('cores');
+      if (cores.length !== d.cpu_per_core.length) {
+        grid.innerHTML = '';
+        grid.style.gridTemplateColumns = `repeat(${d.cpu_per_core.length}, 1fr)`;
+        cores = d.cpu_per_core.map((_, i) => {
+          const c = document.createElement('div'); c.className = 'core';
+          const fill = document.createElement('div'); fill.className = 'core-fill';
+          const lbl = document.createElement('span'); lbl.className = 'core-label';
+          c.appendChild(fill); c.appendChild(lbl);
+          grid.appendChild(c);
+          return { fill, lbl };
+        });
+      }
+      d.cpu_per_core.forEach((v, i) => {
+        cores[i].fill.style.height = v + '%';
+        cores[i].fill.className    = 'core-fill ' + severity(v);
+        cores[i].lbl.textContent   = v.toFixed(0);
+      });
+
+      document.getElementById('meta').textContent =
+        `dernier refresh ${new Date(d.ts * 1000).toLocaleTimeString()}`;
+    } catch (e) {
+      document.getElementById('meta').textContent = 'erreur: ' + e.message;
+    }
+  }
+
+  tick();
+  setInterval(tick, 1000);
+</script>
+
+</body>
+</html>

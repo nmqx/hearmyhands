@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- MediaPipe Hands (client-side, pour le détecteur de seuil) -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
 <div class="main-wrapper reveal">
     <div class="status-indicator" style="margin-bottom: 15px; width: fit-content; margin-left: auto;">
         <span class="dot"></span> Système IA prêt
@@ -15,8 +17,8 @@
             </div>
             <video id="videoElement" autoplay playsinline></video>
             <canvas id="skeletonCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10; transform: scaleX(-1);"></canvas>
-            
-
+            <!-- Canvas du seuil (ligne horizontale + label) -->
+            <canvas id="thresholdCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none; z-index: 11;"></canvas>
         </div>
 
         <!-- Zone Résultats -->
