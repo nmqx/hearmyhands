@@ -18,28 +18,157 @@
 
 <!-- Section Qui Sommes-Nous -->
 <section id="about" class="about-section">
+
+    <!-- Intro -->
+    <div class="reveal about-intro">
+        <span class="section-eyebrow">À propos du projet</span>
+        <h2 class="section-title">Briser le silence, <span>main dans la main</span></h2>
+        <p class="section-lead">
+            En France, plus de <strong>5 millions de personnes</strong> sont touchées par un
+            handicap auditif, et moins de <strong>120 000</strong> utilisent réellement la
+            Langue des Signes Française au quotidien<sup>*</sup>. Entre les deux, un mur de
+            silence — que <strong>HearMyHands</strong> veut faire tomber, en traduisant la
+            LSF en texte en temps réel via une simple webcam, sans matériel spécialisé.
+        </p>
+    </div>
+
+    <!-- Stats banner -->
+    <div class="reveal stats-banner">
+        <div class="stat-pill">
+            <span class="stat-num">5,2&nbsp;M</span>
+            <span class="stat-lbl">personnes concernées en France</span>
+        </div>
+        <div class="stat-pill">
+            <span class="stat-num">&lt; 120&nbsp;k</span>
+            <span class="stat-lbl">locuteurs réguliers de la LSF</span>
+        </div>
+        <div class="stat-pill">
+            <span class="stat-num">23</span>
+            <span class="stat-lbl">lettres reconnues en temps réel</span>
+        </div>
+        <div class="stat-pill">
+            <span class="stat-num">~30&nbsp;fps</span>
+            <span class="stat-lbl">de capture côté navigateur</span>
+        </div>
+    </div>
+
+    <!-- Pipeline -->
     <div class="glass-card reveal">
-        <h2>Qui Sommes-Nous ?</h2>
-        <div class="about-grid">
-            <div class="about-text">
-                <p><strong>HearMyHands</strong> est un projet étudiant (PeiP 2A - 2025/2026) né d'une volonté forte : rendre la communication accessible à tous. Grâce à la vision par ordinateur, nous transformons les gestes en texte en temps réel.</p>
-                <p>Notre équipe travaille avec passion sur les réseaux de neurones pour créer un pont entre les personnes sourdes, malentendantes et entendantes.</p>
+        <h3 class="card-title"><i class="fa-solid fa-microchip"></i> Comment ça marche</h3>
+        <div class="pipeline">
+            <div class="pipeline-step">
+                <span class="step-num">1</span>
+                <i class="fa-solid fa-camera"></i>
+                <h4>Capture</h4>
+                <p>Ta webcam envoie ses frames en <strong>binaire</strong> via WebSocket à notre serveur, ~30 fps.</p>
             </div>
-            <div class="about-stats">
-                <div class="stat-item">
-                    <i class="fa-solid fa-code"></i>
-                    <span>Projet 2A</span>
-                </div>
-                <div class="stat-item">
-                    <i class="fa-solid fa-brain"></i>
-                    <span>IA Intégrée</span>
-                </div>
-                <div class="stat-item">
-                    <i class="fa-solid fa-hands-asl-interpreting"></i>
-                    <span>Temps Réel</span>
-                </div>
+            <i class="pipeline-arrow fa-solid fa-chevron-right"></i>
+            <div class="pipeline-step">
+                <span class="step-num">2</span>
+                <i class="fa-solid fa-person-rays"></i>
+                <h4>Squelette · <em>Gepetto</em></h4>
+                <p>Notre <strong>ResNet-50 + heatmaps</strong> détecte le squelette du haut du corps. <strong>MediaPipe</strong> raffine les 21 points de chaque main.</p>
+            </div>
+            <i class="pipeline-arrow fa-solid fa-chevron-right"></i>
+            <div class="pipeline-step">
+                <span class="step-num">3</span>
+                <i class="fa-solid fa-language"></i>
+                <h4>Lettre · <em>Pinocchio</em></h4>
+                <p>Un <strong>MLP</strong> (mode statique) ou un <strong>GRU temporel</strong> (mode dynamique) traduit les gestes en lettres puis en mots.</p>
             </div>
         </div>
     </div>
+
+    <!-- Équipe -->
+    <div class="glass-card reveal">
+        <h3 class="card-title"><i class="fa-solid fa-users"></i> L'équipe</h3>
+        <p class="card-subtitle">Projet <strong>PeiP 2A · Polytech Nantes</strong> · Année 2025–2026</p>
+
+        <div class="team-poles">
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-eye"></i> Pôle Vision</h4>
+                <p class="pole-tag">image_to_Squelette</p>
+                <p class="pole-name"><em>Gepetto</em></p>
+            </div>
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-language"></i> Pôle Traduction</h4>
+                <p class="pole-tag">squelette_to_mot</p>
+                <p class="pole-name"><em>Pinocchio</em></p>
+            </div>
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-window-maximize"></i> Pôle Application</h4>
+                <p class="pole-tag">UI · intégration · déploiement</p>
+                <p class="pole-name"><em>Web & DevOps</em></p>
+            </div>
+        </div>
+
+        <ul class="team-list">
+            <li class="lead"><strong>Marius DEMONFAUCON</strong><span> · Coordinateur</span></li>
+            <li>Dalyan PENISSON</li>
+            <li>Thibault CAPEDEVIELLE</li>
+            <li>Maxime D'AURIA</li>
+            <li>Killian SEVALLE</li>
+            <li>Titouan DESAILLY</li>
+            <li>Arthur PIERRE</li>
+            <li>Nestor CORABOEUF</li>
+            <li>Louna PEJOT</li>
+            <li>François DELAUNAY</li>
+            <li>Kaelig LERAY</li>
+            <li>Nathan DIZY</li>
+        </ul>
+    </div>
+
+    <!-- Encadrants + Stack -->
+    <div class="about-bottom">
+        <div class="glass-card reveal">
+            <h3 class="card-title"><i class="fa-solid fa-graduation-cap"></i> Encadrants</h3>
+            <p class="card-subtitle">Laboratoire <strong>LS2N</strong> · Polytech Nantes</p>
+            <ul class="people-list">
+                <li>
+                    <strong>Matthieu PERREIRA DA SILVA</strong>
+                    <em>Enseignant-chercheur · supervision IA</em>
+                </li>
+                <li>
+                    <strong>Paul TERRASSIN</strong>
+                    <em>Doctorant · imagerie & IA</em>
+                </li>
+                <li>
+                    <strong>Tristan GOMEZ</strong>
+                    <em>Doctorant · vision par ordinateur</em>
+                </li>
+            </ul>
+        </div>
+
+        <div class="glass-card reveal">
+            <h3 class="card-title"><i class="fa-solid fa-screwdriver-wrench"></i> Stack & données</h3>
+            <ul class="stack-list">
+                <li><i class="fa-solid fa-fire"></i> <span>PyTorch · ResNet-50 + heatmaps</span></li>
+                <li><i class="fa-solid fa-hand"></i> <span>MediaPipe Hands (Google)</span></li>
+                <li><i class="fa-solid fa-database"></i> <span>How2Sign + dataset interne</span></li>
+                <li><i class="fa-solid fa-server"></i> <span>Flask · Socket.IO · gunicorn + gevent</span></li>
+                <li><i class="fa-solid fa-cloud"></i> <span>Déployé sur GCP · Cloudflare devant</span></li>
+                <li><i class="fa-solid fa-bolt"></i> <span>Entraînement sur serveurs LS2N</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ODD -->
+    <div class="reveal odd-banner">
+        <span class="odd-label">Aligné avec les Objectifs de Développement Durable de l'ONU :</span>
+        <div class="odd-badges">
+            <span class="odd-badge odd-4"><i class="fa-solid fa-book-open-reader"></i> ODD 4 · Éducation de qualité</span>
+            <span class="odd-badge odd-10"><i class="fa-solid fa-scale-balanced"></i> ODD 10 · Inégalités réduites</span>
+        </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="reveal contact-line">
+        <p>
+            <sup>*</sup> Source : Drees, <em>Le handicap auditif en France</em>, et FNSF.
+            Pour nous écrire :
+            <a href="mailto:hearmyhands.polytech@gmail.com">hearmyhands.polytech@gmail.com</a>
+        </p>
+    </div>
+
 </section>
 {% endblock %}
