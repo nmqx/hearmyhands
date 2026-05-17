@@ -932,13 +932,19 @@ video.active { opacity: 1; }
 .learn-conf { color: var(--text-soft); margin-left: 4px; }
 
 .learn-video-wrap {
-    aspect-ratio: 4 / 3; background: #000; border-radius: 14px; overflow: hidden;
+    aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden;
     position: relative;
 }
 .learn-video-wrap video,
 .learn-video-wrap iframe {
-    width: 100%; height: 100%; object-fit: contain; display: block;
+    width: 100%; height: 100%; object-fit: cover; display: block;
     border: 0;
+}
+/* Le lecteur Chrome dans l'iframe ajoute son chrome — on agrandit pour
+   compenser et masquer les bandes noires de letterboxing. */
+.learn-video-wrap iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
 }
 .learn-cam-wrap video { transform: scaleX(-1); }
 .learn-cam-wrap canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; }
