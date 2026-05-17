@@ -152,6 +152,11 @@ def learn_library():
     return render_template("learn_library.html")
 
 
+@app.route("/videotest")
+def videotest():
+    return render_template("videotest.html")
+
+
 @app.route("/healthz")
 def healthz():
     if _engine is not None:
