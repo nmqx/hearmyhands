@@ -143,7 +143,10 @@ def learn():
 
 
 @app.route("/learn/cards")
-def learn_cards():
+@app.route("/learn/cards/<letter>")
+def learn_cards(letter=None):
+    # La lettre dans l'URL est lue côté JS (window.location). Côté serveur
+    # on rend juste le même template — le client gère le routing.
     return render_template("learn_cards.html")
 
 
