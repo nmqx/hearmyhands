@@ -139,24 +139,24 @@ let loadSeq = 0;
 function loadExample(letter) {
     const src = `/static/learn/${letter}.mp4?v=${VIDEO_VERSION}`;
     const mySeq = ++loadSeq;
-    // Reset visuel
     exampleMissing.hidden = true;
     exampleVideo.style.display = '';
-    // On NE FAIT PAS de removeAttribute('src')+load() pour reset — ça
-    // génère un 'error' parasite (src vide) qui faisait basculer le video
-    // sur le placeholder "Vidéo à venir". On laisse le simple set de src
-    // suivant remplacer l'ancienne source.
+    // L'attribut autoplay ne se redéclenche pas quand on change src via JS :
+    // il faut load() puis play() explicitement.
     exampleVideo.onerror = () => {
-        if (mySeq !== loadSeq) return;          // ignore les events d'un load périmé
+        if (mySeq !== loadSeq) return;
         if (!exampleVideo.src || exampleVideo.src === window.location.href) return;
         exampleVideo.style.display = 'none';
         exampleMissing.hidden = false;
     };
-    exampleVideo.oncanplay = () => {
+    exampleVideo.onloadedmetadata = () => {
         if (mySeq !== loadSeq) return;
-        exampleVideo.play().catch(() => {/* autoplay refusé, l'utilisateur jouera à la main */});
+        exampleVideo.play().catch(() => {/* autoplay refusé, fallback : controls */
+            exampleVideo.controls = true;
+        });
     };
     exampleVideo.src = src;
+    exampleVideo.load();
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
