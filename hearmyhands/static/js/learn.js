@@ -127,33 +127,29 @@ function resetValidation() {
 
 // Bump si on ré-encode les vidéos — force Cloudflare/navigateur à refetch.
 const VIDEO_VERSION = 'fs1';
+let loadSeq = 0;
 
 function loadExample(letter) {
     const src = `/static/learn/${letter}.mp4?v=${VIDEO_VERSION}`;
+    const mySeq = ++loadSeq;
     // Reset visuel
     exampleMissing.hidden = true;
     exampleVideo.style.display = '';
-    // Détacher anciens handlers pour ne pas mélanger lettres
-    exampleVideo.onerror = null;
-    exampleVideo.onloadeddata = null;
-    exampleVideo.oncanplay = null;
-    // Reset propre du <video> avant changement de src
-    exampleVideo.pause();
-    exampleVideo.removeAttribute('src');
-    exampleVideo.load();
-
-    let failed = false;
-    const showMissing = () => {
-        if (failed) return; failed = true;
+    // On NE FAIT PAS de removeAttribute('src')+load() pour reset — ça
+    // génère un 'error' parasite (src vide) qui faisait basculer le video
+    // sur le placeholder "Vidéo à venir". On laisse le simple set de src
+    // suivant remplacer l'ancienne source.
+    exampleVideo.onerror = () => {
+        if (mySeq !== loadSeq) return;          // ignore les events d'un load périmé
+        if (!exampleVideo.src || exampleVideo.src === window.location.href) return;
         exampleVideo.style.display = 'none';
         exampleMissing.hidden = false;
     };
-    exampleVideo.onerror = showMissing;
     exampleVideo.oncanplay = () => {
-        exampleVideo.play().catch(() => {/* autoplay refusé, l'utilisateur joue à la main */});
+        if (mySeq !== loadSeq) return;
+        exampleVideo.play().catch(() => {/* autoplay refusé, l'utilisateur jouera à la main */});
     };
     exampleVideo.src = src;
-    exampleVideo.load();
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
