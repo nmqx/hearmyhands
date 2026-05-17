@@ -129,18 +129,19 @@ function loadExample(letter) {
     const src = `/static/learn/${letter}.mp4`;
     exampleMissing.hidden = true;
     exampleVideo.style.display = '';
-    fetch(src, { method: 'HEAD' })
-        .then(r => {
-            if (!r.ok) throw new Error('not found');
-            exampleVideo.src = src;
-            exampleVideo.play().catch(() => {});
-        })
-        .catch(() => {
-            exampleVideo.removeAttribute('src');
-            exampleVideo.load();
-            exampleVideo.style.display = 'none';
-            exampleMissing.hidden = false;
-        });
+    // Reset puis set src direct — pas de HEAD preflight (certains proxies/CDN renvoient
+    // 405 sur HEAD pour les fichiers statiques, ce qui faisait croire à un 404).
+    exampleVideo.onerror = () => {
+        exampleVideo.removeAttribute('src');
+        exampleVideo.load();
+        exampleVideo.style.display = 'none';
+        exampleMissing.hidden = false;
+    };
+    exampleVideo.onloadeddata = () => {
+        exampleVideo.play().catch(() => {});
+    };
+    exampleVideo.src = src;
+    exampleVideo.load();
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────

@@ -67,8 +67,29 @@ body {
     overflow-x: hidden;
     min-height: 100vh;
     transition: background 0.4s ease, color 0.3s ease;
-    padding-top: 80px; /* Compense la navbar fixée en haut */
+    padding-top: 112px; /* 32px bandeau + 80px navbar */
     display: block;
+}
+
+/* ========================================= */
+/* MINI BANDEAU PHOTO ÉQUIPE                 */
+/* ========================================= */
+.top-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 32px;
+    z-index: 1001;
+    overflow: hidden;
+    background: #000;
+    border-bottom: 1px solid var(--navbar-border);
+}
+.top-banner img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    opacity: 0.92;
 }
 
 /* ========================================= */
@@ -103,7 +124,7 @@ body {
 /* BARRE DE NAVIGATION (NAVBAR)              */
 /* ========================================= */
 .navbar {
-    position: fixed; top: 0; left: 0; width: 100%; height: 80px;
+    position: fixed; top: 32px; left: 0; width: 100%; height: 80px;
     background: var(--navbar-bg);
     backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
     border-bottom: 1px solid var(--navbar-border);
@@ -168,7 +189,7 @@ body {
 /* PAGE D'ACCUEIL (HOME)                     */
 /* ========================================= */
 .hero-section {
-    min-height: calc(100vh - 80px);
+    min-height: calc(100vh - 112px);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     text-align: center; position: relative; padding: 20px;
 }

@@ -1,8 +1,14 @@
 # HearMyHands
 
+### 🌐 Site en ligne — **<https://hearmyhands.asia>**
+
 > Projet **PeiP 2A — Polytech** · Année 2025-2026
 > Traducteur de Langue des Signes Française (LSF) en temps réel via webcam.
 > Contact équipe : **hearmyhands.polytech@gmail.com**
+
+**Accès direct :**
+- [`/translate`](https://hearmyhands.asia/translate) — traduction LSF temps réel via la webcam
+- [`/learn`](https://hearmyhands.asia/learn) — mode apprentissage Anki des 26 lettres
 
 ## Crédits
 
