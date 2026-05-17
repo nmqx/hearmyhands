@@ -9,7 +9,7 @@ env/
 
 # Model weights (distributed as GitHub release assets)
 *.pt
-*.pth
+
 *.ckpt
 checkpoints/
 checkpoints_pretrain/
