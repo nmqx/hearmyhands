@@ -141,22 +141,28 @@ function loadExample(letter) {
     const mySeq = ++loadSeq;
     exampleMissing.hidden = true;
     exampleVideo.style.display = '';
-    // L'attribut autoplay ne se redéclenche pas quand on change src via JS :
-    // il faut load() puis play() explicitement.
+    exampleVideo.controls = true;          // user can click play si l'autoplay échoue
+    exampleVideo.muted = true;             // ré-affirme muted (requis pour autoplay)
+
     exampleVideo.onerror = () => {
         if (mySeq !== loadSeq) return;
         if (!exampleVideo.src || exampleVideo.src === window.location.href) return;
         exampleVideo.style.display = 'none';
         exampleMissing.hidden = false;
     };
-    exampleVideo.onloadedmetadata = () => {
+    const tryPlay = () => {
         if (mySeq !== loadSeq) return;
-        exampleVideo.play().catch(() => {/* autoplay refusé, fallback : controls */
-            exampleVideo.controls = true;
-        });
+        exampleVideo.play().catch((err) => console.warn('[learn] autoplay refusé:', err && err.name));
     };
+    exampleVideo.onloadedmetadata = tryPlay;
+    exampleVideo.oncanplay        = tryPlay;
+    exampleVideo.onloadeddata     = tryPlay;
+
     exampleVideo.src = src;
     exampleVideo.load();
+    // Tentative immédiate en plus des events
+    setTimeout(tryPlay, 100);
+    setTimeout(tryPlay, 500);
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
