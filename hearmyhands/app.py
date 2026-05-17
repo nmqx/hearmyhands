@@ -157,17 +157,26 @@ def learn_library():
     return render_template("learn_library.html")
 
 
+def _no_store(resp):
+    # Force le browser à refetch les pages quiz (HTML) à chaque visite, sinon
+    # une vieille version cachée référence un quiz.js obsolète et on n'a plus
+    # les fix récents.
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.route("/learn/quiz")
 def learn_quiz():
-    return render_template("learn_quiz.html")
+    from flask import make_response
+    return _no_store(make_response(render_template("learn_quiz.html")))
 
 
 @app.route("/learn/quiz/<mode>")
 def learn_quiz_game(mode):
-    from flask import abort
+    from flask import abort, make_response
     if mode not in ("hardcore", "10sec", "survival"):
         abort(404)
-    return render_template("learn_quiz_game.html", mode=mode)
+    return _no_store(make_response(render_template("learn_quiz_game.html", mode=mode)))
 
 
 # ── Leaderboard quiz (SQLite local) ─────────────────────────────────────

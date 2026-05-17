@@ -469,8 +469,11 @@ function initGame() {
         endSubmitBtn.disabled = true;
         endSubmitStatus.textContent = 'Envoi en cours…';
         endSubmitStatus.className = 'quiz-end-status';
+        console.log('[quiz] submitting', { mode, pseudo, score });
 
+        const t0 = performance.now();
         const resp = await apiSubmitScore(mode, pseudo, score);
+        console.log('[quiz] response', resp, `${(performance.now()-t0).toFixed(0)} ms`);
         if (!resp.ok) {
             endSubmitStatus.textContent = `Échec : ${resp.error || 'erreur réseau'}. Réessaie ?`;
             endSubmitStatus.className = 'quiz-end-status bad';
