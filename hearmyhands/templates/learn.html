@@ -14,6 +14,12 @@
             <p>Les 26 lettres une par une, façon Anki. Tu vois la vidéo de référence à côté de ta webcam, et tu évalues ton apprentissage : <em>je connais</em>, <em>j'apprends</em>, <em>à revoir</em>.</p>
             <span class="learn-mode-cta">Commencer <i class="fa-solid fa-arrow-right"></i></span>
         </a>
+        <a href="{{ url_for('learn_quiz') }}" class="learn-mode-card glass-card">
+            <i class="fa-solid fa-gamepad learn-mode-icon"></i>
+            <h3>Reconnaissance</h3>
+            <p>Une vidéo, une lettre, un chrono. Trois modes : <em>Hardcore</em> (vidéo une seule fois puis écran noir), <em>10 sec</em> (vidéo en boucle pendant 10s), <em>Survie</em> (illimité, temps qui se réduit). Leaderboard local par mode.</p>
+            <span class="learn-mode-cta">Jouer <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
         <a href="{{ url_for('learn_library') }}" class="learn-mode-card glass-card">
             <i class="fa-solid fa-book-open learn-mode-icon"></i>
             <h3>Bibliothèque</h3>
