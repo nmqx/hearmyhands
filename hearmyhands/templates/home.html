@@ -43,8 +43,8 @@
             <span class="stat-lbl">locuteurs réguliers de la LSF</span>
         </div>
         <div class="stat-pill">
-            <span class="stat-num">23</span>
-            <span class="stat-lbl">lettres reconnues en temps réel</span>
+            <span class="stat-num">26</span>
+            <span class="stat-lbl">lettres de l'alphabet LSF (statiques + dynamiques)</span>
         </div>
     </div>
 
@@ -63,14 +63,14 @@
                 <span class="step-num">2</span>
                 <i class="fa-solid fa-person-rays"></i>
                 <h4>Squelette</h4>
-                <p>Notre <strong>ResNet-50 + heatmaps</strong> détecte le squelette du haut du corps. <strong>MediaPipe</strong> raffine les 21 points de chaque main.</p>
+                <p>Notre modèle custom (<strong>CSPDarknet53</strong> + heatmaps + Soft-Argmax) prédit 9 points du haut du corps. <strong>MediaPipe Hands</strong> ajoute les 21 landmarks de chaque main, cropées autour des poignets.</p>
             </div>
             <i class="pipeline-arrow fa-solid fa-chevron-right"></i>
             <div class="pipeline-step">
                 <span class="step-num">3</span>
                 <i class="fa-solid fa-language"></i>
                 <h4>Lettre &amp; mot</h4>
-                <p>Un <strong>MLP</strong> en mode statique, ou notre GRU temporel <strong><em>Ocarina</em></strong> en mode dynamique pour les signes en mouvement.</p>
+                <p>Un <strong>MLP</strong> 42→30→23 pour les lettres statiques, et notre GRU temporel <strong><em>Ocarina</em></strong> sur 45 frames pour les signes en mouvement (J, Z, mots) — ~80% d'accuracy en validation.</p>
             </div>
         </div>
     </div>
@@ -120,12 +120,12 @@
             <p class="card-subtitle">Polytech Nantes &amp; Laboratoire <strong>LS2N</strong></p>
             <ul class="people-list">
                 <li>
-                    <strong>Matthieu PERREIRA DA SILVA</strong>
-                    <em>Enseignant-chercheur LS2N · supervision IA</em>
+                    <strong>Hélène Pérennou</strong>
+                    <em>Tutrice pédagogique · Prof. de mathématiques, Polytech Nantes</em>
                 </li>
                 <li>
-                    <strong>Hélène PERENNOUX</strong>
-                    <em>Professeur de mathématiques · Polytech Nantes</em>
+                    <strong>Matthieu Perreira Da Silva</strong>
+                    <em>Enseignant-chercheur LS2N · accompagnement technique IA</em>
                 </li>
             </ul>
         </div>
@@ -133,12 +133,12 @@
         <div class="glass-card reveal">
             <h3 class="card-title"><i class="fa-solid fa-screwdriver-wrench"></i> Stack & données</h3>
             <ul class="stack-list">
-                <li><i class="fa-solid fa-fire"></i> <span>PyTorch · ResNet-50 + heatmaps</span></li>
+                <li><i class="fa-solid fa-fire"></i> <span>PyTorch · CSPDarknet53 + heatmaps + Soft-Argmax</span></li>
                 <li><i class="fa-solid fa-hand"></i> <span>MediaPipe Hands (Google)</span></li>
-                <li><i class="fa-solid fa-database"></i> <span>How2Sign + dataset interne</span></li>
+                <li><i class="fa-solid fa-clock-rotate-left"></i> <span>GRU temporel <em>Ocarina</em> (45 frames, 2 layers, hidden 128)</span></li>
+                <li><i class="fa-solid fa-database"></i> <span>Dataset interne segmenté (749 clips JSON COCO)</span></li>
                 <li><i class="fa-solid fa-server"></i> <span>Flask · Socket.IO · gunicorn + gevent</span></li>
-                <li><i class="fa-solid fa-cloud"></i> <span>Déployé sur GCP · Cloudflare devant</span></li>
-                <li><i class="fa-solid fa-bolt"></i> <span>Entraînement sur serveurs LS2N</span></li>
+                <li><i class="fa-solid fa-cloud"></i> <span>Déployé sur GCP (Europe) · Cloudflare devant</span></li>
             </ul>
         </div>
     </div>
@@ -180,18 +180,18 @@
 <script>
 (function () {
     const bios = {
-        "Marius DEMONFAUCON":  { role: "Coordinateur · Pôle Application",       bio: "Coordinateur du projet HearMyHands. Assure la cohérence entre les pôles Vision et Traduction, anime les réunions hebdomadaires et garantit le respect du Gantt." },
-        "Dalyan PENISSON":     { role: "Pôle Vision",                            bio: "Membre du pôle Vision, contribue au modèle d'extraction de squelette à partir des frames de la webcam." },
-        "Thibault CAPEDEVIELLE":{ role: "Pôle Vision",                            bio: "Membre du pôle Vision, travaille sur l'architecture du modèle de détection de points clés du haut du corps." },
-        "Maxime D'AURIA":      { role: "Pôle Application",                       bio: "Membre du pôle Application, en charge de l'interface utilisateur et de l'intégration front/back." },
-        "Killian SEVALLE":     { role: "Pôle Traduction · Ocarina",              bio: "Membre du pôle Traduction, contribue au modèle GRU temporel Ocarina qui reconnaît les signes en mouvement." },
-        "Titouan DESAILLY":    { role: "Pôle Traduction",                        bio: "Membre du pôle Traduction, travaille sur la reconnaissance des lettres à partir des coordonnées de squelette." },
-        "Arthur PIERRE":       { role: "Pôle Vision",                            bio: "Membre du pôle Vision, contribue à la phase de capture et au pré-traitement des données image." },
-        "Nestor CORABOEUF":    { role: "Pôle Traduction",                        bio: "Membre du pôle Traduction, travaille sur la classification des gestes en sortie du modèle de squelette." },
-        "Louna PEJOT":         { role: "Communication & Artistique",             bio: "En charge de l'identité visuelle, des supports de communication et de la recherche de bénévoles LSF." },
-        "François DELAUNAY":   { role: "Pôle Application · DevOps",              bio: "Membre du pôle Application, contribue à l'intégration, au déploiement et à l'écosystème d'outils collaboratifs." },
-        "Kaelig LERAY":        { role: "Pôle Application · Web & DevOps",        bio: "Membre du pôle Application, en charge du site web, du déploiement et de l'infrastructure (GCP, Cloudflare, CI)." },
-        "Nathan DIZY":         { role: "Pôle Vision",                            bio: "Membre du pôle Vision, contribue à la collecte du dataset interne et à l'entraînement du modèle de squelette." },
+        "Marius DEMONFAUCON":   { role: "Chef de projet · Pôle Modèle 2",                bio: "Coordinateur de l'équipe de 12 et chef de projet. Assure la synchronisation entre les pôles, le respect du planning et contribue au Modèle 2 (traduction). A aussi développé l'outil de segmentation vidéo qui alimente le dataset du GRU Ocarina." },
+        "Maxime D'AURIA":       { role: "Pôle Modèle 1 (Vision) · API",                  bio: "Contribue au modèle de détection du haut du corps (CSPDarknet53 + heatmaps + Soft-Argmax) et à la gestion de l'API modèle qui sert les prédictions." },
+        "Thibault CAPEDEVIELLE":{ role: "Pôle Modèle 1 (Vision)",                        bio: "Travaille sur l'architecture du modèle de pose : backbone, heatmaps, fonction de perte OKSLoss et stabilisation des prédictions via le Soft-Argmax." },
+        "Titouan DESAILLY":     { role: "Pôle Modèle 1 (Vision)",                        bio: "Membre du pôle Vision, contribue à l'entraînement de la partie custom du Modèle 1 et au pré-traitement des frames (padding, normalisation 416×416)." },
+        "François DELAUNAY":    { role: "Pôle Modèle 1 (Vision) · Trailer",              bio: "Membre du pôle Vision. A également contribué à la production du trailer et des supports de communication du projet." },
+        "Killian SEVALLE":      { role: "Pôle Modèle 2 (Ocarina) · Trailer",             bio: "Contribue au modèle temporel GRU Ocarina qui reconnaît les signes en mouvement sur des séquences de 45 frames (J, Z et signes dynamiques). Participe aussi au trailer." },
+        "Dalyan PENISSON":      { role: "Pôle Modèle 2 (Traduction)",                    bio: "Membre du pôle Traduction. Contribue au MLP statique 42→30→23 qui classe les lettres à partir des landmarks de main, et à l'entraînement de la branche temporelle." },
+        "Nathan DIZY":          { role: "Pôle Modèle 2 (Traduction)",                    bio: "Membre du pôle Traduction. Travaille sur la chaîne d'entraînement du Modèle 2 et la préparation des datasets de classification." },
+        "Louna PEJOT":          { role: "Pôle Communication & dataset",                  bio: "Coordonne les échanges avec les associations LSF, la captation des vidéos pour le dataset du GRU et l'identité visuelle du projet." },
+        "Arthur PIERRE":        { role: "Pôle Communication & dataset",                  bio: "Membre du pôle Communication. Participe à la captation des vidéos LSF et à la structuration du dataset interne." },
+        "Nestor CORABOEUF":     { role: "Pôle Communication & dataset",                  bio: "Membre du pôle Communication. Contribue à la collecte de données vidéo et au lien avec les partenaires externes." },
+        "Kaelig LERAY":         { role: "Interface · Intégration · Direction artistique", bio: "Responsable transversal du site web, de la direction artistique et de l'intégration front/back. Pilote le déploiement (GCP, Cloudflare, CI/CD) et la conception UX. A aussi contribué au trailer." },
     };
 
     const modal     = document.getElementById('memberModal');
