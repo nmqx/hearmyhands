@@ -37,8 +37,10 @@ function initTranslate() {
     const startBtn         = document.getElementById('startBtn');
     const togglePredBtn    = document.getElementById('togglePredBtn');
     const clearBtn         = document.getElementById('clearBtn');
+    const modeBtn          = document.getElementById('modeBtn');
     const wordHistoryEl    = document.getElementById('wordHistory');
     const currentLetterEl  = document.getElementById('currentLetter');
+    const currentLabelEl   = document.getElementById('currentLabel');
     const statusDot        = document.querySelector('.dot');
 
     // ── Tuning du transport WebSocket ────────────────────────────────────────
@@ -59,6 +61,9 @@ function initTranslate() {
     let stableCount = 0;
     let lastSign      = null;
     let lastSignTime  = 0;
+
+    // 'static' = lettre par frame via MLP. 'dynamic' = signe temporel via GRU Ocarina.
+    let mode = 'static';
 
     // Canvas offscreen réutilisé pour l'encodage
     const encodeCanvas = document.createElement('canvas');
@@ -131,6 +136,28 @@ function initTranslate() {
         lastSignTime = 0;
     });
 
+    // ── Bascule Statique / Dynamique ─────────────────────────────────────────
+    function applyMode() {
+        const isStatic = mode === 'static';
+        modeBtn.innerHTML = isStatic
+            ? '<i class="fa-solid fa-image"></i> Mode : Statique'
+            : '<i class="fa-solid fa-clapperboard"></i> Mode : Dynamique';
+        if (currentLabelEl) {
+            currentLabelEl.textContent = isStatic ? 'Lettre détectée' : 'Signe détecté';
+        }
+        // Reset des accumulateurs pour éviter de mélanger les deux pipelines
+        lastLetter = null; stableCount = 0;
+        lastSign = null;   lastSignTime = 0;
+        if (currentLetterEl) currentLetterEl.textContent = '-';
+    }
+    if (modeBtn) {
+        modeBtn.addEventListener('click', () => {
+            mode = (mode === 'static') ? 'dynamic' : 'static';
+            applyMode();
+        });
+        applyMode();
+    }
+
     // ── Envoi d'une frame en binaire ─────────────────────────────────────────
     // Pipeline: jusqu'à MAX_IN_FLIGHT frames en vol simultanément (backpressure).
     // Les ack peuvent revenir dans le désordre — on n'applique que la prédiction
@@ -186,15 +213,17 @@ function initTranslate() {
         if (data.skeleton && data.skeleton.length >= 9) drawSkeleton(data.skeleton);
         if (data.hands && data.hands.length)            drawHands(data.hands);
 
-        const conf = data.confidence ?? 0;
-        const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
-        updateLetter(letter);
-
-        // Le GRU temporel (si chargé côté serveur) prime sur la lettre instantanée
-        // pour l'accumulation dans le mot — anti-doublon par cooldown.
-        const sConf = data.sign_confidence ?? 0;
-        if (data.sign && sConf >= MIN_SIGN_CONFIDENCE) {
-            handleSign(data.sign);
+        if (mode === 'static') {
+            const conf = data.confidence ?? 0;
+            const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
+            updateLetter(letter);
+        } else {
+            // Dynamique : on n'affiche / n'accumule que les signes du GRU
+            const sConf = data.sign_confidence ?? 0;
+            if (currentLetterEl) currentLetterEl.textContent = data.sign ?? '-';
+            if (data.sign && sConf >= MIN_SIGN_CONFIDENCE) {
+                handleSign(data.sign);
+            }
         }
     }
 
