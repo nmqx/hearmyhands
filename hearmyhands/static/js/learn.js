@@ -86,6 +86,13 @@ const skelCanvas    = document.getElementById('learnSkeletonCanvas');
 const skelCtx       = skelCanvas.getContext('2d');
 
 // ── Card lifecycle ───────────────────────────────────────────────────────
+// Helper qui force display:none/'' au lieu de l'attribut [hidden] — utile
+// si une feuille de style override [hidden] (rare mais c'est arrivé).
+function setShown(el, shown) {
+    el.hidden = !shown;
+    el.style.display = shown ? '' : 'none';
+}
+
 function showNext() {
     queue = buildQueue();
     tickQueue();
@@ -96,12 +103,12 @@ function showNext() {
     progressLeftEl.textContent = queue.length;
 
     if (!current) {
-        cardView.hidden = true;
-        emptyDeck.hidden = false;
+        setShown(cardView, false);
+        setShown(emptyDeck, true);
         return;
     }
-    cardView.hidden = false;
-    emptyDeck.hidden = true;
+    setShown(cardView, true);
+    setShown(emptyDeck, false);
 
     const L = current.letter;
     targetLetterEl.textContent = L;
