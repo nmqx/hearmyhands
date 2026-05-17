@@ -46,10 +46,6 @@
             <span class="stat-num">23</span>
             <span class="stat-lbl">lettres reconnues en temps réel</span>
         </div>
-        <div class="stat-pill">
-            <span class="stat-num">~30&nbsp;fps</span>
-            <span class="stat-lbl">de capture côté navigateur</span>
-        </div>
     </div>
 
     <!-- Pipeline -->
@@ -66,15 +62,15 @@
             <div class="pipeline-step">
                 <span class="step-num">2</span>
                 <i class="fa-solid fa-person-rays"></i>
-                <h4>Squelette · <em>Gepetto</em></h4>
+                <h4>Squelette</h4>
                 <p>Notre <strong>ResNet-50 + heatmaps</strong> détecte le squelette du haut du corps. <strong>MediaPipe</strong> raffine les 21 points de chaque main.</p>
             </div>
             <i class="pipeline-arrow fa-solid fa-chevron-right"></i>
             <div class="pipeline-step">
                 <span class="step-num">3</span>
                 <i class="fa-solid fa-language"></i>
-                <h4>Lettre · <em>Pinocchio</em></h4>
-                <p>Un <strong>MLP</strong> (mode statique) ou un <strong>GRU temporel</strong> (mode dynamique) traduit les gestes en lettres puis en mots.</p>
+                <h4>Lettre &amp; mot</h4>
+                <p>Un <strong>MLP</strong> en mode statique, ou notre GRU temporel <strong><em>Ocarina</em></strong> en mode dynamique pour les signes en mouvement.</p>
             </div>
         </div>
     </div>
@@ -88,33 +84,32 @@
             <div class="pole-card">
                 <h4><i class="fa-solid fa-eye"></i> Pôle Vision</h4>
                 <p class="pole-tag">image_to_Squelette</p>
-                <p class="pole-name"><em>Gepetto</em></p>
             </div>
             <div class="pole-card">
                 <h4><i class="fa-solid fa-language"></i> Pôle Traduction</h4>
                 <p class="pole-tag">squelette_to_mot</p>
-                <p class="pole-name"><em>Pinocchio</em></p>
             </div>
             <div class="pole-card">
                 <h4><i class="fa-solid fa-window-maximize"></i> Pôle Application</h4>
                 <p class="pole-tag">UI · intégration · déploiement</p>
-                <p class="pole-name"><em>Web & DevOps</em></p>
             </div>
         </div>
 
-        <ul class="team-list">
-            <li class="lead"><strong>Marius DEMONFAUCON</strong><span> · Coordinateur</span></li>
-            <li>Dalyan PENISSON</li>
-            <li>Thibault CAPEDEVIELLE</li>
-            <li>Maxime D'AURIA</li>
-            <li>Killian SEVALLE</li>
-            <li>Titouan DESAILLY</li>
-            <li>Arthur PIERRE</li>
-            <li>Nestor CORABOEUF</li>
-            <li>Louna PEJOT</li>
-            <li>François DELAUNAY</li>
-            <li>Kaelig LERAY</li>
-            <li>Nathan DIZY</li>
+        <p class="team-hint"><i class="fa-solid fa-hand-pointer"></i> Clique sur un membre pour en savoir plus</p>
+
+        <ul class="team-list" id="teamList">
+            <li class="lead" data-name="Marius DEMONFAUCON" data-role="Coordinateur"><strong>Marius DEMONFAUCON</strong><span> · Coordinateur</span></li>
+            <li data-name="Dalyan PENISSON">Dalyan PENISSON</li>
+            <li data-name="Thibault CAPEDEVIELLE">Thibault CAPEDEVIELLE</li>
+            <li data-name="Maxime D'AURIA">Maxime D'AURIA</li>
+            <li data-name="Killian SEVALLE">Killian SEVALLE</li>
+            <li data-name="Titouan DESAILLY">Titouan DESAILLY</li>
+            <li data-name="Arthur PIERRE">Arthur PIERRE</li>
+            <li data-name="Nestor CORABOEUF">Nestor CORABOEUF</li>
+            <li data-name="Louna PEJOT">Louna PEJOT</li>
+            <li data-name="François DELAUNAY">François DELAUNAY</li>
+            <li data-name="Kaelig LERAY">Kaelig LERAY</li>
+            <li data-name="Nathan DIZY">Nathan DIZY</li>
         </ul>
     </div>
 
@@ -122,19 +117,15 @@
     <div class="about-bottom">
         <div class="glass-card reveal">
             <h3 class="card-title"><i class="fa-solid fa-graduation-cap"></i> Encadrants</h3>
-            <p class="card-subtitle">Laboratoire <strong>LS2N</strong> · Polytech Nantes</p>
+            <p class="card-subtitle">Polytech Nantes &amp; Laboratoire <strong>LS2N</strong></p>
             <ul class="people-list">
                 <li>
                     <strong>Matthieu PERREIRA DA SILVA</strong>
-                    <em>Enseignant-chercheur · supervision IA</em>
+                    <em>Enseignant-chercheur LS2N · supervision IA</em>
                 </li>
                 <li>
-                    <strong>Paul TERRASSIN</strong>
-                    <em>Doctorant · imagerie & IA</em>
-                </li>
-                <li>
-                    <strong>Tristan GOMEZ</strong>
-                    <em>Doctorant · vision par ordinateur</em>
+                    <strong>Hélène PERENNOUX</strong>
+                    <em>Professeur de mathématiques · Polytech Nantes</em>
                 </li>
             </ul>
         </div>
@@ -171,4 +162,63 @@
     </div>
 
 </section>
+
+<!-- Modal Membre -->
+<div id="memberModal" class="member-modal" hidden>
+    <div class="member-modal-backdrop" data-close></div>
+    <div class="member-modal-content" role="dialog" aria-modal="true">
+        <button class="member-modal-close" data-close aria-label="Fermer">&times;</button>
+        <div class="member-modal-avatar">
+            <i class="fa-solid fa-user"></i>
+        </div>
+        <h3 id="memberModalName"></h3>
+        <p id="memberModalRole" class="member-modal-role"></p>
+        <p id="memberModalBio" class="member-modal-bio"></p>
+    </div>
+</div>
+
+<script>
+(function () {
+    const bios = {
+        "Marius DEMONFAUCON":  { role: "Coordinateur · Pôle Application",       bio: "Coordinateur du projet HearMyHands. Assure la cohérence entre les pôles Vision et Traduction, anime les réunions hebdomadaires et garantit le respect du Gantt." },
+        "Dalyan PENISSON":     { role: "Pôle Vision",                            bio: "Membre du pôle Vision, contribue au modèle d'extraction de squelette à partir des frames de la webcam." },
+        "Thibault CAPEDEVIELLE":{ role: "Pôle Vision",                            bio: "Membre du pôle Vision, travaille sur l'architecture du modèle de détection de points clés du haut du corps." },
+        "Maxime D'AURIA":      { role: "Pôle Application",                       bio: "Membre du pôle Application, en charge de l'interface utilisateur et de l'intégration front/back." },
+        "Killian SEVALLE":     { role: "Pôle Traduction · Ocarina",              bio: "Membre du pôle Traduction, contribue au modèle GRU temporel Ocarina qui reconnaît les signes en mouvement." },
+        "Titouan DESAILLY":    { role: "Pôle Traduction",                        bio: "Membre du pôle Traduction, travaille sur la reconnaissance des lettres à partir des coordonnées de squelette." },
+        "Arthur PIERRE":       { role: "Pôle Vision",                            bio: "Membre du pôle Vision, contribue à la phase de capture et au pré-traitement des données image." },
+        "Nestor CORABOEUF":    { role: "Pôle Traduction",                        bio: "Membre du pôle Traduction, travaille sur la classification des gestes en sortie du modèle de squelette." },
+        "Louna PEJOT":         { role: "Communication & Artistique",             bio: "En charge de l'identité visuelle, des supports de communication et de la recherche de bénévoles LSF." },
+        "François DELAUNAY":   { role: "Pôle Application · DevOps",              bio: "Membre du pôle Application, contribue à l'intégration, au déploiement et à l'écosystème d'outils collaboratifs." },
+        "Kaelig LERAY":        { role: "Pôle Application · Web & DevOps",        bio: "Membre du pôle Application, en charge du site web, du déploiement et de l'infrastructure (GCP, Cloudflare, CI)." },
+        "Nathan DIZY":         { role: "Pôle Vision",                            bio: "Membre du pôle Vision, contribue à la collecte du dataset interne et à l'entraînement du modèle de squelette." },
+    };
+
+    const modal     = document.getElementById('memberModal');
+    const nameEl    = document.getElementById('memberModalName');
+    const roleEl    = document.getElementById('memberModalRole');
+    const bioEl     = document.getElementById('memberModalBio');
+    const teamList  = document.getElementById('teamList');
+
+    function open(name) {
+        const data = bios[name] || { role: "Membre de l'équipe", bio: "Bio à venir." };
+        nameEl.textContent = name;
+        roleEl.textContent = data.role;
+        bioEl.textContent  = data.bio;
+        modal.removeAttribute('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    function close() {
+        modal.setAttribute('hidden', '');
+        document.body.style.overflow = '';
+    }
+
+    teamList.addEventListener('click', e => {
+        const li = e.target.closest('li[data-name]');
+        if (li) open(li.dataset.name);
+    });
+    modal.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', close));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+})();
+</script>
 {% endblock %}
