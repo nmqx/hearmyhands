@@ -157,6 +157,27 @@ def videotest():
     return render_template("videotest.html")
 
 
+@app.route("/api/video/<letter>")
+def api_video(letter):
+    """CDN local pour les vidéos d'apprentissage.
+
+    Sert le fichier .mp4 en bypassant le système static de Flask et le cache
+    Cloudflare. C'est appelé dans un <iframe> pour que Chrome ouvre la vidéo
+    dans son lecteur natif (qui fonctionne, contrairement à <video> embedded
+    qui restait noir).
+    """
+    from flask import send_from_directory, abort
+    letter = letter.upper()
+    if not (len(letter) == 1 and 'A' <= letter <= 'Z'):
+        abort(404)
+    video_dir = os.path.join(_HERE, "static", "learn")
+    if not os.path.exists(os.path.join(video_dir, f"{letter}.mp4")):
+        abort(404)
+    resp = send_from_directory(video_dir, f"{letter}.mp4", mimetype="video/mp4")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
 @app.route("/healthz")
 def healthz():
     if _engine is not None:

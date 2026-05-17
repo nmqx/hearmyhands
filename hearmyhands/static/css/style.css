@@ -935,8 +935,10 @@ video.active { opacity: 1; }
     aspect-ratio: 4 / 3; background: #000; border-radius: 14px; overflow: hidden;
     position: relative;
 }
-.learn-video-wrap video {
+.learn-video-wrap video,
+.learn-video-wrap iframe {
     width: 100%; height: 100%; object-fit: contain; display: block;
+    border: 0;
 }
 .learn-cam-wrap video { transform: scaleX(-1); }
 .learn-cam-wrap canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; }
