@@ -37,10 +37,11 @@ SIGN_EVERY_N    = 5
 TRAIN_W, TRAIN_H = 640, 480
 
 app = Flask(__name__)
+# async_mode auto: utilise eventlet/gevent en prod (gunicorn) sinon threading (dev werkzeug)
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
-    async_mode="threading",
+    async_mode=os.environ.get("SOCKETIO_ASYNC_MODE") or None,
     max_http_buffer_size=MAX_FRAME_BYTES,
 )
 
