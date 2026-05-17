@@ -82,15 +82,24 @@ function initTranslate() {
 
     // ── Caméra ───────────────────────────────────────────────────────────────
     startBtn.addEventListener('click', async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("getUserMedia indisponible — ouvre le site dans Safari ou Chrome (pas dans un navigateur in-app type Instagram/Discord).");
+            return;
+        }
         try {
+            // Sur iOS, min:30 lève OverconstrainedError si la cam ne peut pas garantir
+            // 30 fps — on reste sur des contraintes "ideal" uniquement (best-effort).
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    frameRate: { ideal: TARGET_FPS, min: 30 },
-                    width:  { ideal: 1280 },
-                    height: { ideal: 720 },
+                    frameRate: { ideal: TARGET_FPS },
+                    width:     { ideal: 1280 },
+                    height:    { ideal: 720 },
+                    facingMode: 'user',
                 },
             });
             video.srcObject = stream;
+            // iOS exige playsinline + autoplay; on force play() au cas où
+            try { await video.play(); } catch (_) {}
             video.classList.add('active');
             startBtn.style.display = 'none';
             togglePredBtn.disabled = false;
@@ -107,8 +116,16 @@ function initTranslate() {
             }
             alignCanvasWithVideo();
         } catch (err) {
-            console.error(err);
-            alert("Impossible d'accéder à la webcam.");
+            console.error('getUserMedia failed:', err);
+            const map = {
+                NotAllowedError: "Permission caméra refusée. Va dans Réglages → Safari → Caméra et autorise pour ce site.",
+                NotFoundError:   "Aucune caméra trouvée sur l'appareil.",
+                NotReadableError:"La caméra est déjà utilisée par une autre app. Ferme les autres apps qui s'en servent.",
+                OverconstrainedError:"La caméra ne supporte pas les contraintes demandées.",
+                SecurityError:   "Accès caméra bloqué (contexte non sécurisé ?). Vérifie que tu es bien en https://.",
+            };
+            const msg = map[err.name] || ("Impossible d'accéder à la webcam : " + (err.name || err.message));
+            alert(msg);
         }
     });
 
