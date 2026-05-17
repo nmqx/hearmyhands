@@ -47,6 +47,17 @@
                 <i class="fa-solid fa-image"></i> Mode : Statique
             </button>
         </div>
+
+        <!-- Slider de seuil — visible uniquement en mode dynamique -->
+        <div id="thresholdControl" class="threshold-control" hidden>
+            <label for="thresholdSlider">
+                <i class="fa-solid fa-arrows-up-down"></i>
+                Seuil de déclenchement
+                <strong id="thresholdValue">40 %</strong>
+            </label>
+            <input type="range" id="thresholdSlider" min="10" max="90" step="1" value="40">
+            <small>Lève la main au-dessus, signe, puis redescends — la prédiction est validée à la descente.</small>
+        </div>
     </div>
 </div>
 {% endblock %}
