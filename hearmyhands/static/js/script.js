@@ -31,8 +31,24 @@ if (video) initTranslate();
 function initTranslate() {
     const skeletonCanvas = document.getElementById('skeletonCanvas');
     const skelCtx        = skeletonCanvas.getContext('2d');
+    const thresholdCanvas= document.getElementById('thresholdCanvas');
+    const thCtx          = thresholdCanvas ? thresholdCanvas.getContext('2d') : null;
     const videoContainer = video.closest('.video-container');
     const placeholderEl  = videoContainer ? videoContainer.querySelector('.video-placeholder') : null;
+
+    // ── Détecteur de seuil (gating de l'envoi sur position des mains) ────────
+    // 👇 RÉGLAGE — hauteur du seuil, fraction de la hauteur visible.
+    //    0 = tout en haut, 1 = tout en bas. 0.40 = à 40% depuis le haut.
+    const THRESHOLD_Y_RATIO = 0.40;
+    // Tolérance : si les mains repassent sous le seuil pendant ce délai,
+    // on reste armé (évite le clignotement entre frames).
+    const ABSENCE_GRACE_MS  = 500;
+
+    let armed = false;
+    let lastSeenAboveTs = 0;     // dernier instant où une main était au-dessus
+    let mpHands = null;          // instance MediaPipe Hands
+    let lastHandTopY = null;     // Y normalisé [0..1] de la landmark la plus haute
+    let mpHandsBusy = false;     // évite les appels send() qui se chevauchent
 
     const startBtn         = document.getElementById('startBtn');
     const togglePredBtn    = document.getElementById('togglePredBtn');
@@ -115,6 +131,10 @@ function initTranslate() {
                 videoContainer.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
             }
             alignCanvasWithVideo();
+            // Démarre le détecteur de seuil (MediaPipe Hands en local)
+            alignThresholdCanvas();
+            initMediaPipeHands();
+            requestAnimationFrame(trackLoop);
         } catch (err) {
             console.error('getUserMedia failed:', err);
             const map = {
@@ -180,6 +200,9 @@ function initTranslate() {
     // Les ack peuvent revenir dans le désordre — on n'applique que la prédiction
     // la plus récente via un compteur de séquence.
     function sendFrame() {
+        // Gating par le détecteur de seuil : tant qu'aucune main n'est passée
+        // au-dessus de la ligne (avec tolérance de 500 ms), on n'envoie rien.
+        if (!armed) return;
         if (!video.srcObject || inFlightCount >= MAX_IN_FLIGHT) return;
         const vw = video.videoWidth, vh = video.videoHeight;
         if (!vw || !vh) return;
@@ -291,6 +314,111 @@ function initTranslate() {
     ['loadedmetadata', 'loadeddata', 'playing', 'resize'].forEach(ev => {
         video.addEventListener(ev, alignCanvasWithVideo);
     });
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Détecteur de seuil — MediaPipe Hands client-side + RAF
+    // ─────────────────────────────────────────────────────────────────────
+
+    // Aligne le canvas du seuil sur la zone vidéo réelle (idem skeleton).
+    function alignThresholdCanvas() {
+        if (!thresholdCanvas) return;
+        const vw = video.videoWidth, vh = video.videoHeight;
+        const cw = video.clientWidth, ch = video.clientHeight;
+        if (!vw || !vh || !cw || !ch) return;
+        const ratio = vw / vh, boxRatio = cw / ch;
+        let dispW, dispH, dispX, dispY;
+        if (ratio > boxRatio) {
+            dispW = cw;  dispH = cw / ratio;
+            dispX = 0;   dispY = (ch - dispH) / 2;
+        } else {
+            dispH = ch;  dispW = ch * ratio;
+            dispX = (cw - dispW) / 2; dispY = 0;
+        }
+        if (thresholdCanvas.width  !== Math.round(dispW)) thresholdCanvas.width  = Math.round(dispW);
+        if (thresholdCanvas.height !== Math.round(dispH)) thresholdCanvas.height = Math.round(dispH);
+        thresholdCanvas.style.left   = `${dispX}px`;
+        thresholdCanvas.style.top    = `${dispY}px`;
+        thresholdCanvas.style.width  = `${dispW}px`;
+        thresholdCanvas.style.height = `${dispH}px`;
+    }
+    window.addEventListener('resize', alignThresholdCanvas);
+    ['loadedmetadata', 'loadeddata', 'playing', 'resize'].forEach(ev => {
+        video.addEventListener(ev, alignThresholdCanvas);
+    });
+
+    function drawThreshold(active) {
+        if (!thCtx) return;
+        const w = thresholdCanvas.width, h = thresholdCanvas.height;
+        if (!w || !h) return;
+        const y = h * THRESHOLD_Y_RATIO;
+        thCtx.clearRect(0, 0, w, h);
+        // Ligne en pointillés, verte si armé, rouge sinon
+        thCtx.lineWidth = 3;
+        thCtx.strokeStyle = active ? '#32ff78' : '#ff5078';
+        thCtx.setLineDash([12, 8]);
+        thCtx.beginPath();
+        thCtx.moveTo(0, y);
+        thCtx.lineTo(w, y);
+        thCtx.stroke();
+        // Label avec pastille
+        thCtx.setLineDash([]);
+        thCtx.font = 'bold 14px sans-serif';
+        thCtx.fillStyle = active ? '#32ff78' : '#ff5078';
+        thCtx.fillText(active ? '● Capture en cours' : '○ Lève la main pour commencer', 10, y - 8);
+    }
+
+    function onHandsResults(results) {
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+            // Trouve le Y minimum (= landmark la plus haute) sur toutes les mains.
+            // Les coords MediaPipe sont normalisées : 0 = haut de l'image, 1 = bas.
+            let minY = Infinity;
+            for (const hand of results.multiHandLandmarks) {
+                for (const pt of hand) {
+                    if (pt.y < minY) minY = pt.y;
+                }
+            }
+            lastHandTopY = minY;
+        } else {
+            lastHandTopY = null;
+        }
+    }
+
+    async function initMediaPipeHands() {
+        if (mpHands || typeof Hands === 'undefined') return;
+        mpHands = new Hands({
+            locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`,
+        });
+        mpHands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 0,        // lite — assez précis, économe
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence:  0.5,
+        });
+        mpHands.onResults(onHandsResults);
+    }
+
+    // Boucle RAF : pump frames dans Hands + maj armed + dessine la ligne
+    async function trackLoop() {
+        if (mpHands && video.readyState >= 2 && video.videoWidth && !mpHandsBusy) {
+            mpHandsBusy = true;
+            try { await mpHands.send({ image: video }); }
+            catch (e) { /* glitch ponctuel, on continue */ }
+            mpHandsBusy = false;
+        }
+
+        const now = performance.now();
+        if (lastHandTopY !== null && lastHandTopY < THRESHOLD_Y_RATIO) {
+            lastSeenAboveTs = now;
+        }
+        const shouldArm = (now - lastSeenAboveTs) < ABSENCE_GRACE_MS;
+        if (shouldArm !== armed) {
+            armed = shouldArm;
+            // À l'arrêt, on nettoie aussi le skeleton/lettre (sinon ça reste figé)
+            if (!armed) clearSkeleton();
+        }
+        drawThreshold(armed);
+        requestAnimationFrame(trackLoop);
+    }
 
     function updateLetter(letter) {
         if (currentLetterEl) currentLetterEl.textContent = letter ?? '-';
