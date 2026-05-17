@@ -38,5 +38,8 @@ class SignLanguageGRU(nn.Module):
         last_frame_memory = out[:, -1, :]
         predictions = self.classifier(last_frame_memory)
         
+        #renvoie la prédiction
         return predictions
     
+
+
