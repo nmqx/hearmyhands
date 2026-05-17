@@ -183,13 +183,23 @@ function resetValidation() {
 }
 
 function loadExample(letter) {
-    // L'iframe pointe sur /learn/play/<letter> : une mini-page wrapper qui
-    // joue la vidéo en boucle (autoplay+loop+muted). Le <video> dans son
-    // propre document iframe se rend correctement, alors qu'embedded
-    // directement dans /learn/cards il restait noir.
+    // L'iframe pointe sur /learn/play/<letter>. On utilise
+    // contentWindow.location.replace() au lieu de iframe.src = ... pour
+    // NE PAS ajouter d'entrée dans l'historique de l'iframe — sinon le
+    // bouton back du navigateur reculait d'abord l'iframe (la vidéo
+    // change) puis seulement au 2e click la page (l'URL/lettre change),
+    // d'où le décalage.
     exampleMissing.hidden = true;
     exampleFrame.style.display = '';
-    exampleFrame.src = `/learn/play/${letter}`;
+    const url = `/learn/play/${letter}`;
+    try {
+        const w = exampleFrame.contentWindow;
+        if (w && w.location) {
+            w.location.replace(url);
+            return;
+        }
+    } catch (e) { /* iframe pas encore prête, fallback */ }
+    exampleFrame.src = url;
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
