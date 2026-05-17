@@ -25,7 +25,7 @@ Organisée en trois pôles techniques :
 | --- | --- |
 | **Vision** (`image_to_Squelette` ) | Détection du squelette corps + mains |
 | **Traduction** (`squelette_to_mot` ) | Classification des signes en lettres/mots |
-| **Application & UI** | Interface web, intégration, portage |
+| **Application & UI** | Interface web, intégration, portage. |
 
 **Encadrants — Laboratoire LS2N / Polytech Nantes**
 
