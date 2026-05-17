@@ -68,7 +68,7 @@ function rate(letter, choice) {
 const cardView      = document.getElementById('cardView');
 const emptyDeck     = document.getElementById('emptyDeck');
 const targetLetterEl= document.getElementById('targetLetter');
-const exampleVideo  = document.getElementById('exampleVideo');
+const exampleFrame  = document.getElementById('exampleFrame');
 const exampleMissing= document.getElementById('exampleMissing');
 const progressDoneEl= document.getElementById('progressDone');
 const progressLeftEl= document.getElementById('progressLeft');
@@ -132,49 +132,15 @@ function resetValidation() {
     detectedBox.classList.remove('match');
 }
 
-// Bump si on ré-encode les vidéos — force Cloudflare/navigateur à refetch.
-const VIDEO_VERSION = 'h264';
-let loadSeq = 0;
-
 function loadExample(letter) {
-    const src = `/static/learn/${letter}.mp4?v=${VIDEO_VERSION}`;
+    // On laisse Chrome rendre la vidéo dans son lecteur natif via un <iframe>.
+    // C'est la seule façon fiable qu'on a trouvée : la même URL .mp4 ouverte
+    // directement dans le navigateur joue parfaitement, alors qu'un <video>
+    // ajouté à la page restait noir (peut-être conflit GPU avec la webcam à
+    // côté). Pas d'autoplay : l'utilisateur clique play.
     exampleMissing.hidden = true;
-    exampleVideo.style.display = '';
-    exampleVideo.muted = true;
-    exampleVideo.autoplay = true;
-    exampleVideo.loop = true;
-    exampleVideo.playsInline = true;
-    exampleVideo.controls = true;
-
-    // Recrée le <source> child (méthode qui marche dans /videotest).
-    // Plus fiable que `video.src = ...` quand le navigateur est tatillon sur
-    // le re-déclenchement de l'autoplay.
-    exampleVideo.innerHTML = `<source src="${src}" type="video/mp4">`;
-    exampleVideo.load();
-    const p = exampleVideo.play();
-    if (p && p.catch) p.catch(err => console.warn('[learn] play refusé:', err && err.name));
-
-    // Debug overlay temporaire — supprimable une fois que ça marche
-    let dbg = document.getElementById('hmhDbg');
-    if (!dbg) {
-        dbg = document.createElement('div');
-        dbg.id = 'hmhDbg';
-        dbg.style.cssText = 'position:fixed;bottom:8px;left:8px;background:rgba(0,0,0,.85);color:#0f0;font:11px monospace;padding:6px;z-index:9999;max-width:340px;white-space:pre-wrap';
-        document.body.appendChild(dbg);
-    }
-    const updateDbg = () => {
-        dbg.textContent = `letter=${letter}
-ready=${exampleVideo.readyState} net=${exampleVideo.networkState}
-paused=${exampleVideo.paused} ended=${exampleVideo.ended}
-err=${exampleVideo.error ? exampleVideo.error.code : 'none'}
-src=${exampleVideo.currentSrc.slice(-40)}
-dim=${exampleVideo.videoWidth}x${exampleVideo.videoHeight}
-clientWxH=${exampleVideo.clientWidth}x${exampleVideo.clientHeight}`;
-    };
-    updateDbg();
-    setTimeout(updateDbg, 500);
-    setTimeout(updateDbg, 1500);
-    setTimeout(updateDbg, 3000);
+    exampleFrame.style.display = '';
+    exampleFrame.src = `/api/video/${letter}`;
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
