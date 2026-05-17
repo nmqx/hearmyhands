@@ -2,6 +2,7 @@
 flask>=3.0
 flask-socketio>=5.3
 requests>=2.31
+psutil>=5.9        # /monitor dashboard
 
 # Model API
 torch>=2.0

@@ -6,7 +6,14 @@
     <title>HearMyHands</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=8">
+    <!-- Theme: applied before paint to avoid white flash on dark mode load -->
+    <script>
+      (function () {
+        var t = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
 </head>
 <body>
 
@@ -15,13 +22,12 @@
     <div class="bg-shape shape-2"></div>
 
     <!-- Barre de Navigation Globale -->
-    <!-- Barre de Navigation Globale -->
     <nav class="navbar">
         <a href="{{ url_for('home') }}" class="nav-brand">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="nav-logo">
             <span>HearMy<span class="highlight">Hands</span></span>
         </a>
-        
+
         <!-- Bouton Menu Mobile (Hamburger) -->
         <button class="mobile-menu-btn" id="mobileMenuBtn">
             <i class="fa-solid fa-bars"></i>
@@ -31,6 +37,10 @@
             <a href="{{ url_for('translate') }}"><i class="fa-solid fa-camera"></i> Traduction</a>
             <a href="{{ url_for('learn') }}"><i class="fa-solid fa-graduation-cap"></i> Apprendre</a>
             <a href="{{ url_for('home') }}#about"><i class="fa-solid fa-users"></i> Qui Sommes-Nous</a>
+            <a href="https://github.com/nmqx/hearmyhands" target="_blank" rel="noopener" title="Code source sur GitHub" aria-label="GitHub"><i class="fa-brands fa-github"></i> GitHub</a>
+            <button id="themeToggle" class="theme-toggle" aria-label="Basculer thème clair/sombre" title="Basculer le thème">
+                <i class="fa-solid fa-moon"></i>
+            </button>
         </div>
     </nav>
 
@@ -39,7 +49,27 @@
         {% block content %}{% endblock %}
     </div>
 
+    <script>
+      // Toggle thème clair/sombre, persistent via localStorage
+      (function () {
+        var root = document.documentElement;
+        var btn = document.getElementById('themeToggle');
+        function syncIcon() {
+          var icon = btn && btn.querySelector('i');
+          if (!icon) return;
+          var dark = root.getAttribute('data-theme') === 'dark';
+          icon.className = dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
+        syncIcon();
+        if (btn) btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          try { localStorage.setItem('theme', next); } catch (e) {}
+          syncIcon();
+        });
+      })();
+    </script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='js/script.js') }}?v=11"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=15"></script>
 </body>
 </html>

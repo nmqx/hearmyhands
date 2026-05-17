@@ -1,0 +1,167 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[a4paper,margin=2.2cm]{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+
+\definecolor{hmhblue}{HTML}{4A90E2}
+\definecolor{hmhteal}{HTML}{50E3C2}
+\definecolor{hmhdark}{HTML}{2C3E50}
+\definecolor{hmhmuted}{HTML}{6B7891}
+
+\hypersetup{colorlinks=true, linkcolor=hmhblue, urlcolor=hmhblue, citecolor=hmhblue}
+
+\titleformat{\section}{\Large\bfseries\color{hmhdark}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{hmhblue}}{\thesubsection}{0.6em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{HearMyHands -- récap intégration web et déploiement}}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\title{\vspace{-1.5cm}\textbf{HearMyHands}\\[0.2em]
+       \large\color{hmhblue}{Récap de l'intégration web, des optimisations et du déploiement}}
+\author{\small\textit{Pôle Interface -- Kaelig Leray}}
+\date{\small Mai 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+\noindent\textit{Ce document résume le travail mené sur la partie web et le déploiement
+du démonstrateur HearMyHands. Il vient en complément du rapport projet principal,
+qui détaille la conception scientifique des modèles. Le tout est versionné publiquement
+sur \href{https://github.com/nmqx/hearmyhands}{github.com/nmqx/hearmyhands} et accessible
+en ligne sur \href{https://hearmyhands.asia}{hearmyhands.asia}.}
+
+\section{Architecture finale}
+
+\noindent L'application est servie par un seul processus Python (Flask + Socket.IO sous
+gunicorn + gevent-websocket), qui héberge à la fois l'interface utilisateur et le moteur
+d'inférence. Cette fusion a été décidée après mesure: l'aller-retour HTTP entre le
+serveur web et un service d'inférence séparé ajoutait $\sim$40\,ms par frame, gaspillés
+sur boucle locale. Le mode service séparé reste disponible (\texttt{USE\_HTTP\_MODEL=1})
+pour un déploiement distribué éventuel.
+
+\begin{verbatim}
+Navigateur --binary JPEG via WebSocket--> Flask/Socket.IO --in-process-->
+   InferenceEngine (PyTorch + MediaPipe + MLP + GRU Ocarina) --ack--> Navigateur
+\end{verbatim}
+
+La logique d'inférence est isolée dans le module \texttt{HmH/inference.py} (source de
+vérité unique), exposée à la fois en in-process et par un wrapper HTTP minimal
+\texttt{HmH/api.py}. Le code reste 100\,\% open source.
+
+\section{Modèles intégrés au runtime}
+
+\subsection{Pôle Vision (Modèle 1)}
+Le pôle Vision (responsable: Titouan) a fourni une partie custom basée sur
+CSPDarknet53 + heatmaps + Soft-Argmax, prédisant 9 points clés du haut du corps en
+entrée $416\times416$. MediaPipe Hands est appelé en complément sur des crops centrés
+sur les poignets pour extraire les 21 landmarks par main. Les deux briques tournent en
+parallèle (PyTorch sur GPU/CPU, MediaPipe sur CPU via un \texttt{ThreadPoolExecutor})
+pour réduire la latence par frame.
+
+\subsection{Pôle Traduction (Modèle 2)}
+Deux modèles cohabitent dans le runtime, sélectionnables via un toggle UI:
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item \textbf{Mode statique}: MLP $42 \rightarrow 30 \rightarrow 23$ chargé depuis
+        \texttt{Poids/\{W1,W2,b1,b2\}.json}, classification par frame des lettres
+        statiques. Seuil de confiance 0,6, validation par 10 frames stables avant ajout
+        au mot.
+  \item \textbf{Mode dynamique}: GRU Ocarina (2 couches, hidden 128, embedding
+        $42\rightarrow 256 \rightarrow 128$), entraîné par le pôle Traduction
+        (responsable: Killian) sur des séquences de 45 frames. Wrist-relative + scale
+        canonique $640\times480$ alignés sur \texttt{Train.py}. Reconnaît les signes
+        dynamiques (J, Z) que le MLP ne peut pas traiter.
+\end{itemize}
+
+\section{Optimisations performances}
+
+Profilage initial: 5,1\,req/s en service séparé sur \texttt{c3-highcpu-8} CPU,
+avec un goulet à 196\,ms/req. Les leviers principaux:
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Transport WebSocket en \textbf{JPEG binaire} (au lieu de base64 dataURL),
+        downscale client à 480\,px, qualité 0,7 -- frames $\sim$12\,KB au lieu de 80\,KB.
+  \item Pipeline non-bloquant côté client: \texttt{MAX\_IN\_FLIGHT=4} avec numéros de
+        séquence, applique uniquement la dernière prédiction.
+  \item Côté serveur: décodage JPEG unique (cv2 / libjpeg-turbo, plus PIL),
+        pré-traitement direct numpy $\rightarrow$ tenseur GPU, \texttt{torch.inference\_mode},
+        et parallélisation MediaPipe $\leftrightarrow$ PyTorch.
+  \item Fusion in-process Flask + InferenceEngine pour éliminer l'overhead HTTP local.
+\end{itemize}
+
+\noindent\textbf{Résultat:} 44\,req/s sustained en in-process sur la même machine
+($\sim$23\,ms/req), soit $\sim8,\!5\times$ plus rapide. Le client est ensuite cappé à
+30\,fps (au-delà, le serveur CPU ne suit pas et les frames seraient droppées).
+
+\section{Mode apprentissage (style Anki)}
+
+Sous-section \texttt{/learn} ajoutée pour la dimension pédagogique du projet
+(\textbf{ODD~4}). Une fiche par lettre montre la vidéo modèle (signée par Nestor pour la
+majorité, Louna pour le Q) à côté de la webcam de l'apprenant. La pipeline d'inférence
+existante est réutilisée: dès que la prédiction MLP correspond à la lettre cible
+pendant 5 frames stables au-dessus de 60\,\% de confiance, une validation visuelle
+``Bien joué!'' s'affiche. L'apprenant note ensuite sa carte parmi
+\textit{à revoir} / \textit{j'apprends} / \textit{je connais}, et un algorithme de
+répétition espacée gère la file (intervalles 3, 5, 10, 20, 40, 80 cartes). L'état est
+persistant via \texttt{localStorage}, et une bibliothèque expose toutes les lettres et
+permet de remettre en révision celles déjà connues.
+
+\section{Déploiement}
+
+Le démonstrateur est hébergé sur Google Cloud Compute (\texttt{c3-highcpu-8} Debian 12
+en \texttt{europe-west1-b}, IP statique réservée), choisi pour la proximité réseau avec
+les utilisateurs français ($\sim$24\,ms de RTT depuis Nantes, vs $\sim$120\,ms quand le
+serveur était hébergé en \texttt{us-central1}). nginx assure le reverse proxy avec les
+headers WebSocket adéquats, gunicorn fait tourner l'app avec un worker
+\texttt{geventwebsocket} pour Socket.IO. TLS via Let's Encrypt + certbot
+(auto-renouvellement par timer systemd), avec une seule chaîne couvrant les quatre
+\textit{server names}: \texttt{hearmyhands.asia}, \texttt{www.hearmyhands.asia},
+\texttt{nmqx.lol}, \texttt{www.nmqx.lol}. Cloudflare est posé en frontal pour la
+protection anti-bots, le cache statique et le HTTP/3.
+
+Le service \texttt{hmh.service} est piloté par systemd (\texttt{Restart=on-failure})
+et un workflow de redéploiement tient en une commande:
+\texttt{ssh hmh@vm "cd hearmyhands \&\& git pull \&\& sudo systemctl restart hmh"}.
+
+\section{Monitoring et outillage développeur}
+
+Un dashboard temps-réel \texttt{/monitor} polle \texttt{/stats} chaque seconde et affiche
+CPU total + par cœur, RAM, disque, load average, ainsi que la consommation du worker
+gunicorn. Implémentation: psutil + un template HTML autonome, dans la même DA glass +
+gradient. Le mode sombre (toggle lune/soleil dans la navbar, persistant via
+\texttt{localStorage}) couvre l'ensemble du site, par défaut le mode clair.
+
+Le module \texttt{HmH/sign\_classifier.py} prévoit un chargement gracieux des poids
+Ocarina: en l'absence du fichier \texttt{ocarina\_gru\_v1.pth}, l'endpoint
+\texttt{/sign\_predict} retourne 503 et la webapp désactive silencieusement les
+prédictions dynamiques. Cela autorise des démos même lorsque la branche temporelle
+n'est pas embarquée.
+
+\section{Liens utiles}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+  \item Application live: \href{https://hearmyhands.asia/translate}{hearmyhands.asia/translate}
+  \item Apprentissage: \href{https://hearmyhands.asia/learn}{hearmyhands.asia/learn}
+  \item Monitoring: \href{https://hearmyhands.asia/monitor}{hearmyhands.asia/monitor}
+  \item Code source: \href{https://github.com/nmqx/hearmyhands}{github.com/nmqx/hearmyhands}
+  \item ODD 10: \href{https://www.un.org/sustainabledevelopment/fr/inequality/}{un.org/sustainabledevelopment/fr/inequality/}
+  \item ODD 4: \href{https://www.un.org/sustainabledevelopment/fr/education/}{un.org/sustainabledevelopment/fr/education/}
+  \item Laboratoire LS2N: \href{https://www.ls2n.fr/}{ls2n.fr}
+\end{itemize}
+
+\vspace{0.6em}
+\noindent\textit{Remerciements: à Hélène Pérennou pour le suivi pédagogique, à Matthieu
+Perreira Da Silva pour l'accompagnement technique côté LS2N, et aux 11 autres membres
+de l'équipe pour le travail collectif.}
+
+\end{document}

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-wrapper reveal">
+
+    <div class="learn-header">
+        <a href="{{ url_for('learn') }}" class="learn-back">
+            <i class="fa-solid fa-arrow-left"></i> Apprentissage
+        </a>
+        <div class="learn-progress">
+            <i class="fa-solid fa-layer-group"></i>
+            <span id="progressDone">0</span> faites · <span id="progressLeft">26</span> restantes
+        </div>
+    </div>
+
+    <!-- Empty state -->
+    <div id="emptyDeck" class="glass-card learn-empty" hidden>
+        <i class="fa-solid fa-trophy"></i>
+        <h2>Session terminée</h2>
+        <p>Bravo, tu as fini ta file d'apprentissage. Reviens-y plus tard ou réactive des lettres depuis la bibliothèque.</p>
+        <a href="{{ url_for('learn_library') }}" class="btn primary">
+            <i class="fa-solid fa-book-open"></i> Bibliothèque
+        </a>
+    </div>
+
+    <!-- Card -->
+    <div id="cardView" class="glass-card learn-card">
+
+        <div class="learn-letter">
+            <span class="learn-letter-label">Lettre à signer</span>
+            <h1 id="targetLetter">—</h1>
+        </div>
+
+        <div class="learn-grid">
+            <!-- Référence -->
+            <div class="learn-pane">
+                <div class="learn-pane-header">
+                    <span><i class="fa-solid fa-circle-play"></i> Exemple</span>
+                </div>
+                <div class="learn-video-wrap">
+                    <iframe id="exampleFrame" src="about:blank" frameborder="0" allow="autoplay" allowfullscreen></iframe>
+                    <div id="exampleMissing" class="learn-missing" hidden>
+                        <i class="fa-solid fa-video-slash"></i>
+                        <p>Vidéo à venir</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tentative -->
+            <div class="learn-pane">
+                <div class="learn-pane-header">
+                    <span><i class="fa-solid fa-camera"></i> Ta tentative</span>
+                    <span class="learn-detected" id="learnDetectedBox">
+                        détecté: <strong id="learnDetected">—</strong>
+                        <span id="learnConf" class="learn-conf"></span>
+                    </span>
+                </div>
+                <div class="learn-video-wrap learn-cam-wrap">
+                    <video id="learnVideoElement" autoplay playsinline muted></video>
+                    <canvas id="learnSkeletonCanvas"></canvas>
+                    <div id="learnPlaceholder" class="learn-placeholder">
+                        <i class="fa-solid fa-camera"></i>
+                        <p>Caméra inactive</p>
+                    </div>
+                    <div id="learnValidated" class="learn-validated" hidden>
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Bien joué !</span>
+                    </div>
+                </div>
+                <button id="learnStartBtn" class="btn secondary learn-start">
+                    <i class="fa-solid fa-power-off"></i> Activer la caméra
+                </button>
+            </div>
+        </div>
+
+        <div class="learn-ratings">
+            <button class="learn-rate again" data-rate="again">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>À revoir</span>
+                <small>tout de suite</small>
+            </button>
+            <button class="learn-rate learning" data-rate="learning">
+                <i class="fa-solid fa-brain"></i>
+                <span>J'apprends</span>
+                <small id="learnHint">dans 5 cartes</small>
+            </button>
+            <button class="learn-rate known" data-rate="known">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Je connais</span>
+                <small>archivée</small>
+            </button>
+        </div>
+
+        <p class="learn-tip">
+            <i class="fa-solid fa-lightbulb"></i>
+            La validation par caméra utilise notre MLP statique. Pour <strong>J, P, X, Z</strong>
+            (signes dynamiques ou hors classifieur), valide-toi à l'œil et choisis une note.
+        </p>
+
+    </div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/learn.js') }}?v=13"></script>
+{% endblock %}
