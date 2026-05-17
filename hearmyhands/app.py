@@ -194,15 +194,17 @@ def learn_play(letter):
         "<style>html,body{margin:0;background:#000;height:100%;overflow:hidden}"
         "video{width:100%;height:100%;object-fit:cover;display:block}</style>"
         "</head><body>"
-        f"<video id='v' src='/api/video/{letter}' autoplay loop muted playsinline controls></video>"
+        # NB : pas d'attribut loop. Sur certains decoders Chrome, loop=true
+        # empêche l'event 'ended' de se déclencher mais ne replay pas non
+        # plus (la vidéo finit à 0:02/0:02 avec play visible). On gère la
+        # boucle manuellement via JS pour être sûr.
+        f"<video id='v' src='/api/video/{letter}' autoplay muted playsinline controls></video>"
         "<script>"
-        # Filet de sécurité : si Chrome ignore l'attribut loop, on relance
-        # manuellement à la fin et 100 ms avant la fin (certains decoders
-        # ne déclenchent jamais 'ended').
         "var v=document.getElementById('v');"
         "v.addEventListener('ended',function(){v.currentTime=0;v.play();});"
+        # ceinture + bretelles : on relance aussi quelques frames avant la fin
         "v.addEventListener('timeupdate',function(){"
-        "  if(v.duration && v.duration - v.currentTime < 0.1){"
+        "  if(v.duration && v.duration - v.currentTime < 0.15){"
         "    v.currentTime=0; v.play();"
         "  }"
         "});"
