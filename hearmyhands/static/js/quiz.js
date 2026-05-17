@@ -11,32 +11,45 @@ const LB_LIMIT     = 10;
 
 // ─── API serveur ──────────────────────────────────────────────────────────
 async function apiLeaderboard(mode) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
     try {
-        const r = await fetch(`/api/quiz/leaderboard/${mode}?limit=${LB_LIMIT}`);
+        const r = await fetch(`/api/quiz/leaderboard/${mode}?limit=${LB_LIMIT}`,
+                              { signal: ctrl.signal });
+        clearTimeout(t);
         if (!r.ok) throw new Error(`status ${r.status}`);
         const j = await r.json();
         return j.entries || [];
     } catch (e) {
+        clearTimeout(t);
         console.warn('[quiz] leaderboard fetch failed:', e);
         return null;  // null = échec réseau (vs [] = vide)
     }
 }
 
 async function apiSubmitScore(mode, pseudo, score) {
+    // Timeout 8 s — sinon le bouton "Envoi en cours…" reste figé si la requête
+    // se perd quelque part (Cloudflare, gunicorn worker bloqué, etc.).
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
     try {
         const r = await fetch('/api/quiz/score', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ mode, pseudo, score }),
+            signal:  ctrl.signal,
         });
+        clearTimeout(t);
         if (!r.ok) {
             const err = await r.json().catch(() => ({}));
             throw new Error(err.error || `status ${r.status}`);
         }
         return await r.json();   // { ok: true, rank, pseudo, score }
     } catch (e) {
-        console.warn('[quiz] submit failed:', e);
-        return { ok: false, error: e.message };
+        clearTimeout(t);
+        const msg = (e.name === 'AbortError') ? 'timeout (8s)' : e.message;
+        console.warn('[quiz] submit failed:', msg);
+        return { ok: false, error: msg };
     }
 }
 
@@ -179,12 +192,29 @@ function initGame() {
     let rafTimerId = null;
 
     // ─── Sélection lettre ─────────────────────────────────────────────────
+    // On shuffle l'alphabet et on consomme la pile : zéro répétition possible
+    // tant que le bag n'est pas vide. Quand il l'est, on re-shuffle
+    // (utile pour le mode Survie qui peut largement dépasser 25 lettres),
+    // en évitant juste de tirer la même lettre que la dernière en transition.
+    let letterBag = [];
+    function shuffleArray(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+    function refillBag() {
+        letterBag = shuffleArray([...LETTERS_WITH_VIDEO]);
+        // Si la dernière lettre est en tête du nouveau bag, swap pour éviter
+        // une répétition entre 2 manches.
+        if (letterBag[0] === currentLetter && letterBag.length > 1) {
+            [letterBag[0], letterBag[1]] = [letterBag[1], letterBag[0]];
+        }
+    }
     function pickLetter() {
-        // évite la même lettre deux fois de suite
-        let l;
-        do { l = LETTERS_WITH_VIDEO[Math.floor(Math.random() * LETTERS_WITH_VIDEO.length)]; }
-        while (l === currentLetter);
-        return l;
+        if (!letterBag.length) refillBag();
+        return letterBag.pop();
     }
 
     // ─── Démarrage ────────────────────────────────────────────────────────
@@ -192,6 +222,8 @@ function initGame() {
         introCard.hidden = true;
         gameCard.hidden = false;
         score = 0; qIndex = 0;
+        currentLetter = null;
+        letterBag = [];      // re-shuffle au début de chaque partie
         updateScoreBox();
         nextQuestion();
         inputEl.focus();
