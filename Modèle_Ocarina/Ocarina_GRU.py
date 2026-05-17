@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class SignLanguageGRU(nn.Module):
-    def __init__(self, input_size=42, hidden_size=128, num_layers=2, num_classes=26):
+    def __init__(self, input_size=42, hidden_size=64, num_layers=1, num_classes=26):
         """
         input_size: 21 points * 2 (x, y) = 42
         hidden_size: Taille de la mémoire interne du GRU (128 ou 256 c'est bien)

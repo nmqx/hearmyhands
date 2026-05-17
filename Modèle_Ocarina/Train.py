@@ -1,138 +1,227 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
-from Ocarina_GRU import SignLanguageGRU 
-from Dataset import SignLanguageDataset
+from torch.utils.data import DataLoader, Subset
+import numpy as np
+import os
 import matplotlib.pyplot as plt
-import os 
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from Ocarina_GRU import SignLanguageGRU
+from Dataset import SignLanguageDataset
+
 
 def main():
-    #hyperparamètres
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = os.path.join(BASE_DIR, "dataset")
-    BATCH_SIZE = 16
-    MAX_FRAMES = 45
+    BATCH_SIZE = 32
+    MAX_FRAMES = 50
     NUM_CLASSES = 26
-    EPOCHS = 300
-    LEARNING_RATE = 0.001
+    EPOCHS = 500
+    LEARNING_RATE = 0.0015
 
-    #gpu si possible
-    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-    print(f"Apprentissage sur : {device}")
 
-    #prep et separation des données
+    device = torch.device(
+        "cuda" if torch.cuda.is_available()
+        else "mps" if torch.backends.mps.is_available()
+        else "cpu"
+    )
+    print(f"Device utilisé : {device}")
+
     print("Chargement des données...")
-    full_dataset = SignLanguageDataset(data_dir=DATA_DIR, max_frames=MAX_FRAMES)
-    print(f"{len(full_dataset)} json trouvés")
-    print("Classes trouvées :", full_dataset.classes)
 
-    #on divise en 80% train 20% validation
-    train_size = int(0.8 * len(full_dataset))
-    val_size = len(full_dataset) - train_size
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
-    
+    base_dataset = SignLanguageDataset(
+        data_dir=DATA_DIR,
+        max_frames=MAX_FRAMES,
+        augment=False
+    )
+
+    print(f"{len(base_dataset)} samples trouvés")
+    print("Classes :", base_dataset.classes)
+
+    indices = np.random.permutation(len(base_dataset))
+    train_size = int(0.8 * len(indices))
+
+    train_indices = indices[:train_size]
+    val_indices = indices[train_size:]
+
+    # Train = augmentation
+    train_dataset = SignLanguageDataset(
+        data_dir=DATA_DIR,
+        max_frames=MAX_FRAMES,
+        augment=True
+    )
+
+    # Val = pas d'augmentation
+    val_dataset = SignLanguageDataset(
+        data_dir=DATA_DIR,
+        max_frames=MAX_FRAMES,
+        augment=False
+    )
+
+    train_dataset = Subset(train_dataset, train_indices)
+    val_dataset = Subset(val_dataset, val_indices)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    
-    print(f"Vidéos Train : {train_size} | Vidéos Val : {val_size}")
 
-    #GRU init
-    model = SignLanguageGRU(input_size=42, hidden_size=128, num_classes=NUM_CLASSES)
-    model = model.to(device)
-    
+    print(f"Train : {len(train_dataset)} | Val : {len(val_dataset)}")
+
+    # =========================
+    # MODEL
+    # =========================
+    model = SignLanguageGRU(
+        input_size=42,
+        hidden_size=64,
+        num_classes=NUM_CLASSES
+    ).to(device)
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-
-    print("Début de l'entraînement...")
+    # =========================
+    # TRAIN LOOP
+    # =========================
     history_train_loss = []
     history_val_loss = []
     history_val_acc = []
 
+    print("Début entraînement...\n")
 
     for epoch in range(EPOCHS):
-        
-        #train
-        model.train() #active le dropout
+
+        # -------- TRAIN --------
+        model.train()
         train_loss = 0.0
-        
-        for batch_inputs, batch_labels in train_loader:
-            #envoie les datas sur le device
-            batch_inputs, batch_labels = batch_inputs.to(device), batch_labels.to(device)
-            
+
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+
             optimizer.zero_grad()
-            predictions = model(batch_inputs)
-            loss = criterion(predictions, batch_labels)
-            
+
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+
             loss.backward()
             optimizer.step()
+
             train_loss += loss.item()
-            
+
         avg_train_loss = train_loss / len(train_loader)
 
-        #validation
+        # -------- VALIDATION --------
         model.eval()
         val_loss = 0.0
-        correct_predictions = 0
-        total_predictions = 0
-        
-        with torch.no_grad(): #pas de grad, gpu gain
-            for batch_inputs, batch_labels in val_loader:
-                batch_inputs, batch_labels = batch_inputs.to(device), batch_labels.to(device)
-                
-                predictions = model(batch_inputs)
-                loss = criterion(predictions, batch_labels)
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for inputs, labels in val_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+
                 val_loss += loss.item()
-                
-                #accuracy calcul
-                _, predicted_classes = torch.max(predictions, 1)
-                correct_predictions += (predicted_classes == batch_labels).sum().item()
-                total_predictions += batch_labels.size(0)
-                
+
+                _, preds = torch.max(outputs, 1)
+
+                correct += (preds == labels).sum().item()
+                total += labels.size(0)
+
         avg_val_loss = val_loss / len(val_loader)
-        val_accuracy = (correct_predictions / total_predictions) * 100
+        val_acc = 100 * correct / total
 
         history_train_loss.append(avg_train_loss)
         history_val_loss.append(avg_val_loss)
-        history_val_acc.append(val_accuracy)
+        history_val_acc.append(val_acc)
 
-        print(f"Epoch [{epoch+1:02d}/{EPOCHS}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Val Acc: {val_accuracy:.3f}%")
-    
+        print(f"Epoch [{epoch+1}/{EPOCHS}] "
+              f"Train Loss: {avg_train_loss:.4f} | "
+              f"Val Loss: {avg_val_loss:.4f} | "
+              f"Val Acc: {val_acc:.2f}%")
+
+    # =========================
+    # MATRICE DE CONFUSION
+    # =========================
+    print("\nCalcul matrice de confusion...")
+    compute_confusion_matrix(model, val_loader, device, base_dataset.classes)
+
+    # =========================
+    # SAVE MODEL
+    # =========================
     torch.save(model.state_dict(), "ocarina_gru_v1.pth")
-    print("Modèle sauvegardé avec succès.")
-    plot_training_curves(history_train_loss, history_val_loss, history_val_acc)
-    
+    print("Modèle sauvegardé")
+
+    # =========================
+    # COURBES
+    # =========================
+    plot_training_curves(
+        history_train_loss,
+        history_val_loss,
+        history_val_acc
+    )
+
+
+# =========================
+# CONFUSION MATRIX
+# =========================
+def compute_confusion_matrix(model, dataloader, device, classes):
+    model.eval()
+
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    cm = confusion_matrix(all_labels, all_preds, normalize='true')
+
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=classes
+    )
+
+    plt.figure(figsize=(10, 10))
+    disp.plot(cmap='Blues', xticks_rotation=90)
+    plt.title("Matrice de confusion (normalisée)")
+    plt.savefig("confusion_matrix.png", dpi=300)
+    plt.show()
+
+
 def plot_training_curves(train_losses, val_losses, val_accuracies):
-    """Génère et sauvegarde un graphique des courbes d'apprentissage."""
     epochs = range(1, len(train_losses) + 1)
 
     plt.figure(figsize=(12, 5))
 
-    # --- 1er Graphique : L'erreur (Loss) ---
+    # LOSS
     plt.subplot(1, 2, 1)
-    plt.plot(epochs, train_losses, 'b-', linewidth=2, label='Train Loss ')
-    plt.plot(epochs, val_losses, 'r-', linewidth=2, label='Val Loss ')
-    plt.title('Évolution de l\'Erreur ')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
+    plt.plot(epochs, train_losses, label='Train Loss')
+    plt.plot(epochs, val_losses, label='Val Loss')
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Loss")
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid()
 
-    # --- 2ème Graphique : La précision (Accuracy) ---
+    # ACCURACY
     plt.subplot(1, 2, 2)
-    plt.plot(epochs, val_accuracies, 'g-', linewidth=2, label='Validation Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy (%)')
+    plt.plot(epochs, val_accuracies, label='Val Accuracy')
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Accuracy")
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid()
 
     plt.tight_layout()
-    plt.savefig('training_curves.png', dpi=300) # Sauvegarde en haute qualité pour le PDF LaTeX
-    print("\n Graphique sauvegardé sous 'training_curves.png'")
-    plt.show() # Affiche la fenêtre à la fin
-
+    plt.savefig("training_curves.png", dpi=300)
+    plt.show()
 
 
 if __name__ == "__main__":

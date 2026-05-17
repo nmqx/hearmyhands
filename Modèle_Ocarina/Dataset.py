@@ -102,7 +102,7 @@ class SignLanguageDataset(Dataset):
             
         if self.augment:
             # aug 1: Bruit offset
-            noise = torch.rand_like(tensor_frames) * 3
+            noise = torch.rand_like(tensor_frames)
             tensor_frames = tensor_frames + noise
 
             # aug 2 : Occlusion légere
