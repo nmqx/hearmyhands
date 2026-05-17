@@ -127,18 +127,27 @@ function resetValidation() {
 
 function loadExample(letter) {
     const src = `/static/learn/${letter}.mp4`;
+    // Reset visuel
     exampleMissing.hidden = true;
     exampleVideo.style.display = '';
-    // Reset puis set src direct — pas de HEAD preflight (certains proxies/CDN renvoient
-    // 405 sur HEAD pour les fichiers statiques, ce qui faisait croire à un 404).
-    exampleVideo.onerror = () => {
-        exampleVideo.removeAttribute('src');
-        exampleVideo.load();
+    // Détacher anciens handlers pour ne pas mélanger lettres
+    exampleVideo.onerror = null;
+    exampleVideo.onloadeddata = null;
+    exampleVideo.oncanplay = null;
+    // Reset propre du <video> avant changement de src
+    exampleVideo.pause();
+    exampleVideo.removeAttribute('src');
+    exampleVideo.load();
+
+    let failed = false;
+    const showMissing = () => {
+        if (failed) return; failed = true;
         exampleVideo.style.display = 'none';
         exampleMissing.hidden = false;
     };
-    exampleVideo.onloadeddata = () => {
-        exampleVideo.play().catch(() => {});
+    exampleVideo.onerror = showMissing;
+    exampleVideo.oncanplay = () => {
+        exampleVideo.play().catch(() => {/* autoplay refusé, l'utilisateur joue à la main */});
     };
     exampleVideo.src = src;
     exampleVideo.load();
