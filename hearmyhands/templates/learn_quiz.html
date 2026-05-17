@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-wrapper reveal">
+
+    <div class="learn-header">
+        <a href="{{ url_for('learn') }}" class="learn-back">
+            <i class="fa-solid fa-arrow-left"></i> Apprentissage
+        </a>
+        <div class="learn-progress">
+            <i class="fa-solid fa-gamepad"></i>
+            Reconnaissance
+        </div>
+    </div>
+
+    <!-- Pseudo -->
+    <div class="glass-card quiz-pseudo-card">
+        <label for="quizPseudo"><i class="fa-solid fa-user-pen"></i> Ton pseudo</label>
+        <input id="quizPseudo" type="text" maxlength="20" placeholder="Comment t'appeler dans le leaderboard ?">
+    </div>
+
+    <!-- Sélection du mode -->
+    <div class="quiz-modes">
+        <a href="{{ url_for('learn_quiz_game', mode='hardcore') }}" class="quiz-mode-card glass-card" data-mode="hardcore">
+            <div class="quiz-mode-head">
+                <i class="fa-solid fa-skull"></i>
+                <h3>Hardcore</h3>
+            </div>
+            <p>La vidéo joue <strong>une seule fois</strong>. Écran noir. <strong>3 secondes</strong> pour répondre. 10 questions.</p>
+            <div class="quiz-mode-best" data-mode-best="hardcore">—</div>
+            <span class="quiz-mode-cta">Jouer <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+
+        <a href="{{ url_for('learn_quiz_game', mode='10sec') }}" class="quiz-mode-card glass-card" data-mode="10sec">
+            <div class="quiz-mode-head">
+                <i class="fa-solid fa-stopwatch"></i>
+                <h3>10 sec</h3>
+            </div>
+            <p>La vidéo boucle <strong>10 secondes</strong>. T'as les <strong>mêmes 10 secondes</strong> pour répondre. 10 questions.</p>
+            <div class="quiz-mode-best" data-mode-best="10sec">—</div>
+            <span class="quiz-mode-cta">Jouer <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+
+        <a href="{{ url_for('learn_quiz_game', mode='survival') }}" class="quiz-mode-card glass-card" data-mode="survival">
+            <div class="quiz-mode-head">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+                <h3>Survie</h3>
+            </div>
+            <p>Illimité. Le temps part de <strong>15 s</strong> et fond progressivement. Quand t'es sous la durée de la vidéo, ça <strong>accélère jusqu'à ×3</strong>. Combien tu tiens ?</p>
+            <div class="quiz-mode-best" data-mode-best="survival">—</div>
+            <span class="quiz-mode-cta">Jouer <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+    </div>
+
+    <!-- Leaderboards -->
+    <div class="quiz-leaderboards">
+        <div class="glass-card quiz-leaderboard">
+            <h3><i class="fa-solid fa-skull"></i> Top Hardcore</h3>
+            <ol id="lbHardcore" class="quiz-lb-list"></ol>
+        </div>
+        <div class="glass-card quiz-leaderboard">
+            <h3><i class="fa-solid fa-stopwatch"></i> Top 10 sec</h3>
+            <ol id="lb10sec" class="quiz-lb-list"></ol>
+        </div>
+        <div class="glass-card quiz-leaderboard">
+            <h3><i class="fa-solid fa-fire-flame-curved"></i> Top Survie</h3>
+            <ol id="lbSurvival" class="quiz-lb-list"></ol>
+        </div>
+    </div>
+
+    <p class="learn-tip">
+        <i class="fa-solid fa-circle-info"></i>
+        Les scores sont enregistrés <strong>localement</strong> dans ce navigateur. Pas de cloud, pas de tracking.
+    </p>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/quiz.js') }}?v=1"></script>
+{% endblock %}

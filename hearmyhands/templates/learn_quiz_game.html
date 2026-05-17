@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-wrapper reveal">
+
+    <div class="learn-header">
+        <a href="{{ url_for('learn_quiz') }}" class="learn-back">
+            <i class="fa-solid fa-arrow-left"></i> Modes
+        </a>
+        <div class="learn-progress">
+            <i class="fa-solid fa-gamepad"></i>
+            <span id="modeLabel">—</span>
+            · <span id="scoreBox">0 / 0</span>
+        </div>
+    </div>
+
+    <!-- Pré-jeu : intro + bouton démarrer -->
+    <div id="quizIntro" class="glass-card quiz-intro">
+        <h2 id="introTitle">—</h2>
+        <p id="introRules">—</p>
+        <button id="startGameBtn" class="btn primary">
+            <i class="fa-solid fa-play"></i> Démarrer
+        </button>
+    </div>
+
+    <!-- En jeu -->
+    <div id="quizGame" class="glass-card quiz-game" hidden>
+        <div class="quiz-game-top">
+            <div class="quiz-timer-wrap">
+                <div class="quiz-timer-bar"><div id="quizTimerFill" class="quiz-timer-fill"></div></div>
+                <div class="quiz-timer-text"><span id="quizTimerText">0.0</span> s</div>
+            </div>
+        </div>
+
+        <div class="quiz-video-wrap">
+            <iframe id="quizFrame" src="about:blank" frameborder="0" allow="autoplay"></iframe>
+            <div id="quizBlackout" class="quiz-blackout" hidden>
+                <i class="fa-solid fa-eye-slash"></i>
+                <p>Quelle lettre ?</p>
+            </div>
+        </div>
+
+        <div class="quiz-answer">
+            <input id="quizInput" type="text" maxlength="1" autocomplete="off" autocapitalize="characters"
+                   inputmode="text" placeholder="A‑Z">
+            <button id="quizSubmit" class="btn primary"><i class="fa-solid fa-paper-plane"></i> Valider</button>
+        </div>
+        <p id="quizFeedback" class="quiz-feedback"></p>
+    </div>
+
+    <!-- Fin de partie -->
+    <div id="quizEnd" class="glass-card quiz-end" hidden>
+        <i class="fa-solid fa-trophy"></i>
+        <h2 id="endTitle">Partie terminée</h2>
+        <p id="endSub">—</p>
+        <div id="endRank" class="quiz-end-rank"></div>
+        <div class="quiz-end-actions">
+            <button id="playAgainBtn" class="btn primary"><i class="fa-solid fa-rotate-right"></i> Rejouer</button>
+            <a href="{{ url_for('learn_quiz') }}" class="btn secondary"><i class="fa-solid fa-list"></i> Modes & leaderboards</a>
+        </div>
+    </div>
+
+</div>
+
+<script>window.HMH_QUIZ_MODE = "{{ mode }}";</script>
+<script src="{{ url_for('static', filename='js/quiz.js') }}?v=1"></script>
+{% endblock %}

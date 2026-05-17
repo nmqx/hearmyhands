@@ -155,6 +155,19 @@ def learn_library():
     return render_template("learn_library.html")
 
 
+@app.route("/learn/quiz")
+def learn_quiz():
+    return render_template("learn_quiz.html")
+
+
+@app.route("/learn/quiz/<mode>")
+def learn_quiz_game(mode):
+    from flask import abort
+    if mode not in ("hardcore", "10sec", "survival"):
+        abort(404)
+    return render_template("learn_quiz_game.html", mode=mode)
+
+
 @app.route("/videotest")
 def videotest():
     return render_template("videotest.html")
@@ -197,20 +210,41 @@ def learn_play(letter):
         "<style>html,body{margin:0;background:#000;height:100%;overflow:hidden}"
         "video{width:100%;height:100%;object-fit:cover;display:block}</style>"
         "</head><body>"
-        # NB : pas d'attribut loop. Sur certains decoders Chrome, loop=true
-        # empêche l'event 'ended' de se déclencher mais ne replay pas non
-        # plus (la vidéo finit à 0:02/0:02 avec play visible). On gère la
-        # boucle manuellement via JS pour être sûr.
         f"<video id='v' src='/api/video/{letter}' autoplay muted playsinline controls></video>"
         "<script>"
+        "(function(){"
         "var v=document.getElementById('v');"
-        "v.addEventListener('ended',function(){v.currentTime=0;v.play();});"
-        # ceinture + bretelles : on relance aussi quelques frames avant la fin
-        "v.addEventListener('timeupdate',function(){"
+        # Parse les params du hash : #quiz&speed=2&once
+        # - speed=N    -> playbackRate
+        # - once       -> pas de loop, lecture unique
+        # - sinon      -> loop manuel (event 'ended' relance)
+        "var h=(location.hash||'').replace(/^#/,'').toLowerCase();"
+        "var params=h.split('&').reduce(function(a,kv){"
+        "  var p=kv.split('='); if(p[0]) a[p[0]]=p[1]||true; return a;"
+        "}, {});"
+        "var speed=parseFloat(params.speed||1);"
+        "if(isFinite(speed)&&speed>0){ v.playbackRate=speed; v.defaultPlaybackRate=speed; }"
+        "var once=!!params.once;"
+        # Loop par défaut (pas en mode 'once')
+        "function relance(){ if(!once){ v.currentTime=0; v.play(); } }"
+        "v.addEventListener('ended', relance);"
+        "v.addEventListener('timeupdate', function(){"
         "  if(v.duration && v.duration - v.currentTime < 0.15){"
-        "    v.currentTime=0; v.play();"
+        "    if(once){ /* laisse finir, l'event ended s'occupera de signaler */ }"
+        "    else { v.currentTime=0; v.play(); }"
         "  }"
         "});"
+        # Notifie le parent que la vidéo s'est terminée (utile en mode once)
+        "v.addEventListener('ended', function(){"
+        "  try{ parent.postMessage({hmh:'video_ended'}, '*'); }catch(e){}"
+        "});"
+        # Le parent peut envoyer { hmh: 'pause' } pour stopper net (blackout)
+        "window.addEventListener('message', function(ev){"
+        "  var d=ev.data; if(!d||typeof d!=='object') return;"
+        "  if(d.hmh==='pause'){ v.pause(); }"
+        "  if(d.hmh==='play'){ v.play(); }"
+        "});"
+        "})();"
         "</script>"
         "</body></html>"
     )
