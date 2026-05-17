@@ -13,11 +13,23 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import time
 from collections import deque
 from threading import Lock
 
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
+
+try:
+    import psutil  # type: ignore
+    psutil.cpu_percent(interval=None)                  # baseline (premier appel = 0)
+    psutil.cpu_percent(interval=None, percpu=True)     # baseline per-core
+    _proc = psutil.Process()
+    _proc.cpu_percent(interval=None)
+    _PSUTIL = True
+except ImportError:
+    _PSUTIL = False
+    _proc = None
 
 # Make HmH/ importable regardless of where this is launched from
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -135,6 +147,39 @@ def healthz():
     if _engine is not None:
         return _engine.health()
     return {"backend": "http", "model_api": MODEL_API_URL}
+
+
+@app.route("/monitor")
+def monitor():
+    return render_template("monitor.html")
+
+
+@app.route("/stats")
+def stats():
+    if not _PSUTIL:
+        return {"error": "psutil not installed"}, 503
+    mem  = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+    load = os.getloadavg()
+    return {
+        "ts":            time.time(),
+        "cpu_total":     psutil.cpu_percent(interval=None),
+        "cpu_per_core":  psutil.cpu_percent(interval=None, percpu=True),
+        "cpu_count":     psutil.cpu_count(),
+        "mem_total":     mem.total,
+        "mem_used":      mem.used,
+        "mem_percent":   mem.percent,
+        "disk_total":    disk.total,
+        "disk_used":     disk.used,
+        "disk_percent":  disk.percent,
+        "load_1":        load[0],
+        "load_5":        load[1],
+        "load_15":       load[2],
+        "uptime":        time.time() - psutil.boot_time(),
+        "app_rss":       _proc.memory_info().rss,
+        "app_cpu":       _proc.cpu_percent(interval=None),
+        "app_threads":   _proc.num_threads(),
+    }
 
 
 # ── Socket.IO ────────────────────────────────────────────────────────────────
