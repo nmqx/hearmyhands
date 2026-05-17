@@ -144,14 +144,37 @@ function loadExample(letter) {
     exampleVideo.autoplay = true;
     exampleVideo.loop = true;
     exampleVideo.playsInline = true;
-    exampleVideo.controls = true;  // garde controls visibles si autoplay refusé
+    exampleVideo.controls = true;
 
-    // Set src + load → l'attribut autoplay déclenche la lecture quand prêt.
-    exampleVideo.src = src;
+    // Recrée le <source> child (méthode qui marche dans /videotest).
+    // Plus fiable que `video.src = ...` quand le navigateur est tatillon sur
+    // le re-déclenchement de l'autoplay.
+    exampleVideo.innerHTML = `<source src="${src}" type="video/mp4">`;
     exampleVideo.load();
-    // Tentative de play, au cas où autoplay seul ne suffit pas
     const p = exampleVideo.play();
     if (p && p.catch) p.catch(err => console.warn('[learn] play refusé:', err && err.name));
+
+    // Debug overlay temporaire — supprimable une fois que ça marche
+    let dbg = document.getElementById('hmhDbg');
+    if (!dbg) {
+        dbg = document.createElement('div');
+        dbg.id = 'hmhDbg';
+        dbg.style.cssText = 'position:fixed;bottom:8px;left:8px;background:rgba(0,0,0,.85);color:#0f0;font:11px monospace;padding:6px;z-index:9999;max-width:340px;white-space:pre-wrap';
+        document.body.appendChild(dbg);
+    }
+    const updateDbg = () => {
+        dbg.textContent = `letter=${letter}
+ready=${exampleVideo.readyState} net=${exampleVideo.networkState}
+paused=${exampleVideo.paused} ended=${exampleVideo.ended}
+err=${exampleVideo.error ? exampleVideo.error.code : 'none'}
+src=${exampleVideo.currentSrc.slice(-40)}
+dim=${exampleVideo.videoWidth}x${exampleVideo.videoHeight}
+clientWxH=${exampleVideo.clientWidth}x${exampleVideo.clientHeight}`;
+    };
+    updateDbg();
+    setTimeout(updateDbg, 500);
+    setTimeout(updateDbg, 1500);
+    setTimeout(updateDbg, 3000);
 }
 
 // ── Rating buttons ───────────────────────────────────────────────────────
