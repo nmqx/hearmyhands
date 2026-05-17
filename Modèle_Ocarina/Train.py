@@ -5,12 +5,14 @@ from torch.utils.data import DataLoader, random_split
 from Ocarina_GRU import SignLanguageGRU 
 from Dataset import SignLanguageDataset
 import matplotlib.pyplot as plt
+import os 
 
 def main():
     #hyperparamètres
-    DATA_DIR = "./dataset/"
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = os.path.join(BASE_DIR, "dataset")
     BATCH_SIZE = 16
-    MAX_FRAMES = 60
+    MAX_FRAMES = 45
     NUM_CLASSES = 26
     EPOCHS = 300
     LEARNING_RATE = 0.001
