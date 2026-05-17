@@ -8,7 +8,7 @@
 
 **Équipe HearMyHands** (12 membres) :
 
-- **Marius DEMONFAUCON** — Coordinateur / Correspondant
+- **Marius DEMONFAUCON** : Coordinateur / Correspondant
 - Dalyan PENISSON · Thibault CAPEDEVIELLE · Maxime D'AURIA · Killian SEVALLE
 - Titouan DESAILLY · Arthur PIERRE · Nestor CORABOEUF · Louna PEJOT
 - François DELAUNAY · Kaelig LERAY · Nathan DIZY
