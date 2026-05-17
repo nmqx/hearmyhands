@@ -2,9 +2,11 @@ import os
 import json
 import torch
 from torch.utils.data import Dataset, DataLoader
+import re
+
 
 class SignLanguageDataset(Dataset):
-    def __init__(self, data_dir, max_frames=60, num_features=42, augment=True):
+    def __init__(self, data_dir, max_frames=50, num_features=42, augment=True):
         self.data_dir = data_dir
         self.max_frames = max_frames
         self.num_features = num_features
@@ -14,20 +16,34 @@ class SignLanguageDataset(Dataset):
         #liste des fichiers
         all_files = [f for f in os.listdir(data_dir) if f.endswith('.json')]
         
-        #extraction et nettoyage : "A2.json" -> "A2" -> "A"
-        extracted_labels = [
-            f.split('_')[-1].replace('.json', '').rstrip('0123456789') 
-            for f in all_files
-        ]
+        extracted_labels = []
+        
+        #détecteur magique
+        for f in all_files:
+            # Cette règle cherche une lettre unique située :
+            # - Soit juste après "prise" + un chiffre (ex: prise1F)
+            # - Soit juste après "corrigé" (ex: corrigéF2)
+            # - Soit juste après un tiret du bas (ex: _A2.json)
+            match = re.search(r'(?:prise\d+|corrigé|_)([A-Za-z])(?:[0-9_.]|$)', f, re.IGNORECASE)
+            
+            if match:
+                extracted_labels.append(match.group(1).upper())
+            else:
+                # Si un de tes potes nomme son fichier "video_de_louna_salut.json", 
+                # ça n'explosera pas, ça te préviendra juste dans la console.
+                print(f"⚠️ ATTENTION : Impossible de trouver la lettre dans {f}")
+                extracted_labels.append("ERREUR")
         
         #création des classes
-        self.classes = sorted(list(set(extracted_labels)))
+        valid_labels = [l for l in extracted_labels if l != "ERREUR"]
+        self.classes = sorted(list(set(valid_labels)))
         self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(self.classes)}
         
-        # assignation
+        #ssignation
         for file_name, label in zip(all_files, extracted_labels):
-            file_path = os.path.join(data_dir, file_name)
-            self.samples.append((file_path, self.class_to_idx[label]))
+            if label != "ERREUR":
+                file_path = os.path.join(data_dir, file_name)
+                self.samples.append((file_path, self.class_to_idx[label]))
 
     def __len__(self):
         return len(self.samples)
@@ -59,7 +75,22 @@ class SignLanguageDataset(Dataset):
                 
         #conversion tensor
         tensor_frames = torch.tensor(frames_data, dtype=torch.float32)
-        
+
+        # tensor_frames a une forme : [nb_frames, 42]
+        #pn sépare les X (indices pairs 0, 2, 4...) et les Y (indices impairs 1, 3, 5...)
+        for i in range(tensor_frames.shape[0]):
+            wrist_x = tensor_frames[i, 0].item()
+            wrist_y = tensor_frames[i, 1].item()
+            
+            #si le poignet n'est pas à 0
+            if wrist_x != 0 and wrist_y != 0:
+                #soustrait wrist_x à toutes les colonnes paires (les X)
+                tensor_frames[i, 0::2] = tensor_frames[i, 0::2] - wrist_x
+                #soustrait wrist_y à toutes les colonnes impaires (les Y)
+                tensor_frames[i, 1::2] = tensor_frames[i, 1::2] - wrist_y
+
+
+
         #(Padding / Truncating)
         seq_len = tensor_frames.shape[0]
         
