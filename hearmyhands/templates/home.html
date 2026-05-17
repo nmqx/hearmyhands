@@ -76,48 +76,76 @@
     </div>
 
     <!-- Équipe -->
-    <div class="glass-card reveal">
+    <div class="glass-card reveal" id="teamList">
         <h3 class="card-title"><i class="fa-solid fa-users"></i> L'équipe</h3>
-        <p class="card-subtitle">Projet <strong>PeiP 2A · Polytech Nantes</strong> · Année 2025–2026</p>
+        <p class="card-subtitle">Projet <strong>PeiP 2A · Polytech Nantes</strong> · Année 2025–2026 · <span class="team-hint-inline"><i class="fa-solid fa-hand-pointer"></i> clique un nom pour la bio</span></p>
 
-        <div class="team-poles">
+        <!-- Chef de projet -->
+        <div class="pole-card pole-lead">
+            <h4><i class="fa-solid fa-crown"></i> Chef de projet · Coordination</h4>
+            <ul class="pole-members">
+                <li data-name="Marius DEMONFAUCON" class="member-pill member-lead"><strong>Marius DEMONFAUCON</strong></li>
+            </ul>
+        </div>
+
+        <!-- 4 pôles principaux -->
+        <div class="team-poles-grid">
             <div class="pole-card">
-                <h4><i class="fa-solid fa-eye"></i> Pôle Vision</h4>
-                <p class="pole-tag">image_to_Squelette</p>
+                <h4><i class="fa-solid fa-eye"></i> Pôle Vision <span class="pole-tag-inline">Modèle 1</span></h4>
+                <ul class="pole-members">
+                    <li data-name="Titouan DESAILLY" class="member-pill member-resp"><strong>Titouan DESAILLY</strong> · Responsable</li>
+                    <li data-name="Maxime D'AURIA"    class="member-pill">Maxime D'AURIA</li>
+                    <li data-name="Thibault CAPEDEVIELLE" class="member-pill">Thibault CAPEDEVIELLE</li>
+                    <li data-name="François DELAUNAY" class="member-pill">François DELAUNAY</li>
+                </ul>
             </div>
+
             <div class="pole-card">
-                <h4><i class="fa-solid fa-language"></i> Pôle Traduction</h4>
-                <p class="pole-tag">squelette_to_mot</p>
+                <h4><i class="fa-solid fa-language"></i> Pôle Traduction <span class="pole-tag-inline">Modèle 2 · Ocarina</span></h4>
+                <ul class="pole-members">
+                    <li data-name="Killian SEVALLE" class="member-pill member-resp"><strong>Killian SEVALLE</strong> · Responsable</li>
+                    <li data-name="Dalyan PENISSON" class="member-pill">Dalyan PENISSON</li>
+                    <li data-name="Louna PEJOT"     class="member-pill">Louna PEJOT</li>
+                    <li data-name="Nestor CORABOEUF" class="member-pill">Nestor CORABOEUF</li>
+                    <li data-name="Nathan DIZY"     class="member-pill">Nathan DIZY</li>
+                </ul>
             </div>
+
             <div class="pole-card">
-                <h4><i class="fa-solid fa-window-maximize"></i> Pôle Application</h4>
-                <p class="pole-tag">UI · intégration · déploiement</p>
+                <h4><i class="fa-solid fa-window-maximize"></i> Pôle Interface</h4>
+                <ul class="pole-members">
+                    <li data-name="Kaelig LERAY"  class="member-pill member-resp"><strong>Kaelig LERAY</strong> · Responsable</li>
+                    <li data-name="Killian SEVALLE" class="member-pill">Killian SEVALLE</li>
+                </ul>
+            </div>
+
+            <div class="pole-card">
+                <h4><i class="fa-solid fa-bullhorn"></i> Communication &amp; Direction artistique</h4>
+                <ul class="pole-members">
+                    <li data-name="Arthur PIERRE" class="member-pill member-resp"><strong>Arthur PIERRE</strong> · Responsable / CM</li>
+                    <li data-name="Nestor CORABOEUF" class="member-pill">Nestor CORABOEUF</li>
+                    <li data-name="Kaelig LERAY"     class="member-pill">Kaelig LERAY</li>
+                    <li data-name="Louna PEJOT"      class="member-pill">Louna PEJOT</li>
+                </ul>
             </div>
         </div>
 
-        <p class="team-hint"><i class="fa-solid fa-hand-pointer"></i> Clique sur un membre pour en savoir plus</p>
-
-        <ul class="team-list" id="teamList">
-            <li class="lead" data-name="Marius DEMONFAUCON" data-role="Coordinateur"><strong>Marius DEMONFAUCON</strong><span> · Coordinateur</span></li>
-            <li data-name="Dalyan PENISSON">Dalyan PENISSON</li>
-            <li data-name="Thibault CAPEDEVIELLE">Thibault CAPEDEVIELLE</li>
-            <li data-name="Maxime D'AURIA">Maxime D'AURIA</li>
-            <li data-name="Killian SEVALLE">Killian SEVALLE</li>
-            <li data-name="Titouan DESAILLY">Titouan DESAILLY</li>
-            <li data-name="Arthur PIERRE">Arthur PIERRE</li>
-            <li data-name="Nestor CORABOEUF">Nestor CORABOEUF</li>
-            <li data-name="Louna PEJOT">Louna PEJOT</li>
-            <li data-name="François DELAUNAY">François DELAUNAY</li>
-            <li data-name="Kaelig LERAY">Kaelig LERAY</li>
-            <li data-name="Nathan DIZY">Nathan DIZY</li>
-        </ul>
+        <!-- Pôle outils -->
+        <div class="pole-card pole-tools">
+            <h4><i class="fa-solid fa-screwdriver-wrench"></i> Outils &amp; Organisation technique</h4>
+            <ul class="pole-members pole-members-inline">
+                <li data-name="Thibault CAPEDEVIELLE" class="member-pill"><strong>Thibault CAPEDEVIELLE</strong> · Responsable Git</li>
+                <li data-name="Maxime D'AURIA"    class="member-pill"><strong>Maxime D'AURIA</strong> · Gérant Drive</li>
+                <li data-name="François DELAUNAY" class="member-pill"><strong>François DELAUNAY</strong> · Admin Discord</li>
+            </ul>
+        </div>
     </div>
 
     <!-- Encadrants + Stack -->
     <div class="about-bottom">
         <div class="glass-card reveal">
             <h3 class="card-title"><i class="fa-solid fa-graduation-cap"></i> Encadrants</h3>
-            <p class="card-subtitle">Polytech Nantes &amp; Laboratoire <strong>LS2N</strong></p>
+            <p class="card-subtitle">Polytech Nantes &amp; Laboratoire <a href="https://www.ls2n.fr/" target="_blank" rel="noopener"><strong>LS2N</strong></a></p>
             <ul class="people-list">
                 <li>
                     <strong>Hélène Pérennou</strong>
@@ -125,7 +153,7 @@
                 </li>
                 <li>
                     <strong>Matthieu Perreira Da Silva</strong>
-                    <em>Enseignant-chercheur LS2N · accompagnement technique IA</em>
+                    <em>Enseignant-chercheur <a href="https://www.ls2n.fr/" target="_blank" rel="noopener">LS2N</a> · accompagnement technique IA</em>
                 </li>
             </ul>
         </div>
@@ -147,8 +175,12 @@
     <div class="reveal odd-banner">
         <span class="odd-label">Aligné avec les Objectifs de Développement Durable de l'ONU :</span>
         <div class="odd-badges">
-            <span class="odd-badge odd-4"><i class="fa-solid fa-book-open-reader"></i> ODD 4 · Éducation de qualité</span>
-            <span class="odd-badge odd-10"><i class="fa-solid fa-scale-balanced"></i> ODD 10 · Inégalités réduites</span>
+            <a href="https://www.un.org/sustainabledevelopment/fr/education/" target="_blank" rel="noopener" class="odd-badge odd-4">
+                <i class="fa-solid fa-book-open-reader"></i> ODD 4 · Éducation de qualité
+            </a>
+            <a href="https://www.un.org/sustainabledevelopment/fr/inequality/" target="_blank" rel="noopener" class="odd-badge odd-10">
+                <i class="fa-solid fa-scale-balanced"></i> ODD 10 · Inégalités réduites
+            </a>
         </div>
     </div>
 
@@ -180,18 +212,18 @@
 <script>
 (function () {
     const bios = {
-        "Marius DEMONFAUCON":   { role: "Chef de projet · Pôle Modèle 2",                bio: "Coordinateur de l'équipe de 12 et chef de projet. Assure la synchronisation entre les pôles, le respect du planning et contribue au Modèle 2 (traduction). A aussi développé l'outil de segmentation vidéo qui alimente le dataset du GRU Ocarina." },
-        "Maxime D'AURIA":       { role: "Pôle Modèle 1 (Vision) · API",                  bio: "Contribue au modèle de détection du haut du corps (CSPDarknet53 + heatmaps + Soft-Argmax) et à la gestion de l'API modèle qui sert les prédictions." },
-        "Thibault CAPEDEVIELLE":{ role: "Pôle Modèle 1 (Vision)",                        bio: "Travaille sur l'architecture du modèle de pose : backbone, heatmaps, fonction de perte OKSLoss et stabilisation des prédictions via le Soft-Argmax." },
-        "Titouan DESAILLY":     { role: "Pôle Modèle 1 (Vision)",                        bio: "Membre du pôle Vision, contribue à l'entraînement de la partie custom du Modèle 1 et au pré-traitement des frames (padding, normalisation 416×416)." },
-        "François DELAUNAY":    { role: "Pôle Modèle 1 (Vision) · Trailer",              bio: "Membre du pôle Vision. A également contribué à la production du trailer et des supports de communication du projet." },
-        "Killian SEVALLE":      { role: "Pôle Modèle 2 (Ocarina) · Trailer",             bio: "Contribue au modèle temporel GRU Ocarina qui reconnaît les signes en mouvement sur des séquences de 45 frames (J, Z et signes dynamiques). Participe aussi au trailer." },
-        "Dalyan PENISSON":      { role: "Pôle Modèle 2 (Traduction)",                    bio: "Membre du pôle Traduction. Contribue au MLP statique 42→30→23 qui classe les lettres à partir des landmarks de main, et à l'entraînement de la branche temporelle." },
-        "Nathan DIZY":          { role: "Pôle Modèle 2 (Traduction)",                    bio: "Membre du pôle Traduction. Travaille sur la chaîne d'entraînement du Modèle 2 et la préparation des datasets de classification." },
-        "Louna PEJOT":          { role: "Pôle Communication & dataset",                  bio: "Coordonne les échanges avec les associations LSF, la captation des vidéos pour le dataset du GRU et l'identité visuelle du projet." },
-        "Arthur PIERRE":        { role: "Pôle Communication & dataset",                  bio: "Membre du pôle Communication. Participe à la captation des vidéos LSF et à la structuration du dataset interne." },
-        "Nestor CORABOEUF":     { role: "Pôle Communication & dataset",                  bio: "Membre du pôle Communication. Contribue à la collecte de données vidéo et au lien avec les partenaires externes." },
-        "Kaelig LERAY":         { role: "Interface · Intégration · Direction artistique", bio: "Responsable transversal du site web, de la direction artistique et de l'intégration front/back. Pilote le déploiement (GCP, Cloudflare, CI/CD) et la conception UX. A aussi contribué au trailer." },
+        "Marius DEMONFAUCON":   { role: "Chef de projet · Coordination",                          bio: "Coordinateur de l'équipe de 12. Pilote le planning, anime les réunions, tranche les arbitrages techniques entre pôles et fait le lien avec la tutrice pédagogique. A aussi développé l'outil de segmentation vidéo qui alimente le dataset du GRU Ocarina." },
+        "Titouan DESAILLY":     { role: "Responsable Pôle Vision (Modèle 1)",                     bio: "Responsable du pôle Vision. Pilote l'architecture du Modèle 1 (CSPDarknet53 + heatmaps + Soft-Argmax) et le pipeline d'entraînement pour les 9 points du haut du corps." },
+        "Maxime D'AURIA":       { role: "Pôle Vision · Gérant Drive",                             bio: "Pôle Vision : contribue au Modèle 1 et à la gestion de l'API modèle. Gère aussi le Google Drive de l'équipe (centralisation des documents, livrables, ressources)." },
+        "Thibault CAPEDEVIELLE":{ role: "Pôle Vision · Responsable Git",                          bio: "Pôle Vision : travaille sur le backbone, la fonction de perte OKSLoss et la stabilisation Soft-Argmax. Responsable Git : valide les merge requests, gère les branches et l'historique du dépôt." },
+        "François DELAUNAY":    { role: "Pôle Vision · Admin Discord",                            bio: "Pôle Vision : contribue à l'entraînement et au pré-traitement (padding, normalisation 416×416). Administre le serveur Discord de l'équipe (rôles, channels, automation)." },
+        "Killian SEVALLE":      { role: "Responsable Pôle Traduction (Ocarina) · Pôle Interface", bio: "Responsable du pôle Traduction. Pilote le GRU temporel Ocarina (45 frames × 42 features) pour les signes dynamiques comme J et Z. Contribue aussi au pôle Interface." },
+        "Dalyan PENISSON":      { role: "Pôle Traduction (Modèle 2)",                             bio: "Pôle Traduction : contribue au MLP statique 42→30→23 qui classe les lettres à partir des landmarks de main, et à l'entraînement du GRU." },
+        "Louna PEJOT":          { role: "Pôle Traduction · Communication & DA",                   bio: "Double rôle : pôle Traduction (entraînement et validation) et pôle Communication & Direction artistique (identité visuelle, captation des vidéos LSF pour le dataset)." },
+        "Nestor CORABOEUF":     { role: "Pôle Traduction · Communication & DA",                   bio: "Double rôle : pôle Traduction (classification) et Communication (relation associations, collecte de données vidéo). A signé la majorité des vidéos modèles utilisées dans le mode Apprentissage." },
+        "Nathan DIZY":          { role: "Pôle Traduction (Modèle 2)",                             bio: "Pôle Traduction : travaille sur la chaîne d'entraînement et la préparation des datasets de classification temporelle." },
+        "Kaelig LERAY":         { role: "Responsable Pôle Interface · Communication & DA",        bio: "Responsable du pôle Interface : direction artistique, conception UX, intégration front/back, déploiement (GCP Europe, Cloudflare, TLS, CI/CD). Contribue aussi à la communication et au trailer." },
+        "Arthur PIERRE":        { role: "Responsable Communication & DA · Community Manager",     bio: "Responsable du pôle Communication & Direction artistique. Community manager du projet, en charge des supports de communication, de la relation avec les associations LSF et de la captation des vidéos pour le dataset." },
     };
 
     const modal     = document.getElementById('memberModal');
