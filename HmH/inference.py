@@ -35,6 +35,13 @@ CKPT_CANDIDATES = [
 HAND_TASK_PATH = os.path.join(SCRIPT_DIR, "heatnoks", "hand_landmarker.task")
 POIDS_DIR      = os.path.join(SCRIPT_DIR, "Poids")
 
+# Espace pixel canonique de l'entraînement du MLP letter classifier
+# (cf. predict.py qui force la webcam en 640x480). Doit rester aligné
+# avec hearmyhands/app.py TRAIN_W/TRAIN_H utilisés pour le GRU Ocarina,
+# car le même pré-traitement (rescale + centrage sur le poignet) est
+# attendu par les deux modèles.
+LETTER_TRAIN_W, LETTER_TRAIN_H = 640, 480
+
 OCARINA_DIR     = os.path.join(SCRIPT_DIR, "..", "Modèle_Ocarina")
 OCARINA_WEIGHTS = os.environ.get("OCARINA_WEIGHTS", os.path.join(OCARINA_DIR, "ocarina_gru_v1.pth"))
 OCARINA_CLASSES = os.environ.get("OCARINA_CLASSES", os.path.join(OCARINA_DIR, "ocarina_classes.json"))
@@ -177,10 +184,19 @@ class InferenceEngine:
         h_img, w_img, _ = frame_bgr.shape
         if h_img == 0 or w_img == 0:
             return None, None
-        features = [
-            coord
-            for pt in hands_data[0]
-            for coord in (pt[0] / w_img, pt[1] / h_img)
-        ]
+        # Pré-traitement identique au training du MLP (predict.py / Poids_centered) :
+        # 1) on rescale les landmarks vers l'espace canonique 640x480 utilisé en
+        #    capture du dataset (sinon l'amplitude des features varie avec la
+        #    résolution runtime),
+        # 2) on recentre sur le wrist (landmark 0) → le point 0 devient (0, 0)
+        #    et l'invariance en translation est garantie.
+        sx = LETTER_TRAIN_W / w_img
+        sy = LETTER_TRAIN_H / h_img
+        hand = hands_data[0]
+        wx, wy = hand[0][0] * sx, hand[0][1] * sy
+        features = []
+        for pt in hand:
+            features.append(pt[0] * sx - wx)
+            features.append(pt[1] * sy - wy)
         result = self.letter_classifier.predict(features)
         return (None, None) if result is None else result
