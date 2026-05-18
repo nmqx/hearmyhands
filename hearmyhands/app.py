@@ -320,12 +320,21 @@ def learn_play(letter):
     letter = letter.upper()
     if not (len(letter) == 1 and 'A' <= letter <= 'Z'):
         abort(404)
+    # Fingerprint = mtime du fichier vidéo. Ajouté en query string sur la src
+    # du <video> pour qu'un re-encode invalide tous les caches navigateur
+    # (sans ça, max-age=86400 sur /api/video/* fait que le browser garde
+    # l'ancienne version mp4v pendant 24 h).
+    video_path = os.path.join(_HERE, "static", "learn", f"{letter}.mp4")
+    try:
+        v_tag = int(os.path.getmtime(video_path))
+    except OSError:
+        v_tag = 0
     html = (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         "<style>html,body{margin:0;background:#000;height:100%;overflow:hidden}"
         "video{width:100%;height:100%;object-fit:cover;display:block}</style>"
         "</head><body>"
-        f"<video id='v' src='/api/video/{letter}' autoplay muted playsinline controls></video>"
+        f"<video id='v' src='/api/video/{letter}?v={v_tag}' autoplay muted playsinline controls></video>"
         "<script>"
         "(function(){"
         "var v=document.getElementById('v');"
