@@ -26,8 +26,8 @@
         <p class="section-lead">
             En France, plus de <strong>5 millions de personnes</strong> sont touchées par un
             handicap auditif, et moins de <strong>120 000</strong> utilisent réellement la
-            Langue des Signes Française au quotidien<sup>*</sup>. Entre les deux, un mur de
-            silence — que <strong>HearMyHands</strong> veut faire tomber, en traduisant la
+            Langue des Signes Française au quotidien. Entre les deux, un mur de
+            silence que <strong>HearMyHands</strong> veut faire tomber, en traduisant la
             LSF en texte en temps réel via une simple webcam, sans matériel spécialisé.
         </p>
     </div>
@@ -70,7 +70,7 @@
                 <span class="step-num">3</span>
                 <i class="fa-solid fa-language"></i>
                 <h4>Lettre &amp; mot</h4>
-                <p>Un <strong>MLP</strong> 42→30→23 pour les lettres statiques, et notre GRU temporel <strong><em>Ocarina</em></strong> sur 45 frames pour les signes en mouvement (J, Z, mots) — ~80% d'accuracy en validation.</p>
+                <p>Un <strong>MLP</strong> 42→50→26 (ReLU + softmax) pour les lettres statiques, et notre GRU temporel <strong><em>Ocarina</em></strong> sur 45 frames pour les signes en mouvement, avec environ 80&nbsp;% d'accuracy en validation.</p>
             </div>
         </div>
     </div>
@@ -188,7 +188,7 @@
     <!-- Contact -->
     <div class="reveal contact-line">
         <p>
-            <sup>*</sup> Source : Drees, <em>Le handicap auditif en France</em>, et FNSF.
+            Sources des chiffres : Drees (<em>Le handicap auditif en France</em>) et FNSF.
             Pour nous écrire :
             <a href="mailto:hearmyhands.polytech@gmail.com">hearmyhands.polytech@gmail.com</a>
             · Code source :
