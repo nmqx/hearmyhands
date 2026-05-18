@@ -163,12 +163,14 @@
         <div class="glass-card reveal">
             <h3 class="card-title"><i class="fa-solid fa-screwdriver-wrench"></i> Stack & données</h3>
             <ul class="stack-list">
-                <li><i class="fa-solid fa-fire"></i> <span>PyTorch · CSPDarknet53 + heatmaps + Soft-Argmax</span></li>
-                <li><i class="fa-solid fa-hand"></i> <span>MediaPipe Hands (Google)</span></li>
-                <li><i class="fa-solid fa-clock-rotate-left"></i> <span>GRU temporel <em>Ocarina</em> (45 frames, 2 layers, hidden 128)</span></li>
-                <li><i class="fa-solid fa-database"></i> <span>Dataset interne segmenté (749 clips JSON COCO)</span></li>
-                <li><i class="fa-solid fa-server"></i> <span>Flask · Socket.IO · gunicorn + gevent</span></li>
-                <li><i class="fa-solid fa-cloud"></i> <span>Déployé sur GCP (Europe) · Cloudflare devant</span></li>
+                <li><i class="fa-solid fa-fire"></i> <span>PyTorch · ResNet-50 + heatmaps + Spatial Softmax</span></li>
+                <li><i class="fa-solid fa-person"></i> <span>Modèle 1 custom · 9 points clés du haut du corps</span></li>
+                <li><i class="fa-solid fa-hand"></i> <span>MediaPipe Hands · 21 points clés par main</span></li>
+                <li><i class="fa-solid fa-layer-group"></i> <span>MLP statique · classification alphabet à partir de 42 coordonnées</span></li>
+                <li><i class="fa-solid fa-clock-rotate-left"></i> <span>GRU temporel <em>Ocarina</em> · séquences de 45 frames en interface</span></li>
+                <li><i class="fa-solid fa-database"></i> <span>Dataset interne · JSON segmentés et annotations de keypoints</span></li>
+                <li><i class="fa-solid fa-server"></i> <span>Serveur web temps réel · inférence centralisée côté serveur</span></li>
+                <li><i class="fa-solid fa-cloud"></i> <span>Déploiement public · hearmyhands.asia via Google Cloud</span></li>
             </ul>
         </div>
     </div>
