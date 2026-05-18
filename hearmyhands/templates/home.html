@@ -56,7 +56,7 @@
                 <span class="step-num">1</span>
                 <i class="fa-solid fa-camera"></i>
                 <h4>Capture</h4>
-                <p>Ta webcam envoie ses frames en <strong>binaire</strong> via WebSocket à notre serveur, ~30 fps.</p>
+                <p>Ta webcam envoie ses frames en <strong>binaire</strong> via WebSocket à notre serveur, ~15 fps.</p>
             </div>
             <i class="pipeline-arrow fa-solid fa-chevron-right"></i>
             <div class="pipeline-step">
@@ -70,7 +70,7 @@
                 <span class="step-num">3</span>
                 <i class="fa-solid fa-language"></i>
                 <h4>Lettre &amp; mot</h4>
-                <p>Un <strong>MLP</strong> 42→50→26 (ReLU + softmax) pour les lettres statiques, et notre GRU temporel <strong><em>Ocarina</em></strong> sur 45 frames pour les signes en mouvement, avec environ 80&nbsp;% d'accuracy en validation.</p>
+                <p>Un <strong>MLP</strong> (ReLU + softmax) pour les lettres statiques, et notre GRU temporel <strong><em>Ocarina</em></strong> pour les signes en mouvement, avec environ 80&nbsp;% d'accuracy en validation.</p>
             </div>
         </div>
     </div>
@@ -107,6 +107,7 @@
                     <li data-name="Dalyan PENISSON" class="member-pill">Dalyan PENISSON</li>
                     <li data-name="Nathan DIZY"     class="member-pill">Nathan DIZY</li>
                     <li data-name="Louna PEJOT"     class="member-pill">Louna PEJOT</li>
+                    <li data-name="Marius DEMONFAUCON"     class="member-pill">Marius DEMONFAUCON</li>
                 </ul>
             </div>
 
