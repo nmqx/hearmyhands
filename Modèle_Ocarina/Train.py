@@ -14,10 +14,17 @@ def main():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = os.path.join(BASE_DIR, "dataset")
     BATCH_SIZE = 32
-    MAX_FRAMES = 50
+    # MAX_FRAMES doit matcher SEQ_LEN côté inférence (HmH/sign_classifier.py
+    # et hearmyhands/app.py). Sinon le modèle est entraîné sur 50 frames mais
+    # nourri en prod avec 45 frames -> distribution différente -> dégradation.
+    MAX_FRAMES = 45
     NUM_CLASSES = 26
     EPOCHS = 500
     LEARNING_RATE = 0.0015
+    # Early stopping : si on n'améliore pas la val acc pendant N epochs, on arrête.
+    EARLY_STOP_PATIENCE = 50
+    # LR scheduler : on divise le LR par 2 après autant d'epochs sans amélioration.
+    LR_PATIENCE = 15
 
 
     device = torch.device(
@@ -77,6 +84,11 @@ def main():
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    # Scheduler : divise le LR par 2 quand la val_loss arrête de progresser.
+    # Stabilise les oscillations en fin d'entraînement.
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=LR_PATIENCE
+    )
 
     # =========================
     # TRAIN LOOP
@@ -84,6 +96,15 @@ def main():
     history_train_loss = []
     history_val_loss = []
     history_val_acc = []
+
+    # Best-model tracking : on garde le state_dict de l'epoch avec la meilleure
+    # val accuracy (et non le dernier, qui après 500 epochs est très probablement
+    # overfit). Early stopping après EARLY_STOP_PATIENCE epochs sans amélioration.
+    best_val_acc = -1.0
+    best_state_dict = None
+    best_epoch = -1
+    epochs_no_improve = 0
+    save_path = os.path.join(BASE_DIR, "ocarina_gru_v1.pth")
 
     print("Début entraînement...\n")
 
@@ -135,22 +156,50 @@ def main():
         history_val_loss.append(avg_val_loss)
         history_val_acc.append(val_acc)
 
+        # Scheduler step (basé sur la val_loss)
+        scheduler.step(avg_val_loss)
+        current_lr = optimizer.param_groups[0]['lr']
+
+        # Save-best : on sauvegarde uniquement si on bat la meilleure val acc.
+        improved = val_acc > best_val_acc
+        if improved:
+            best_val_acc = val_acc
+            best_epoch = epoch + 1
+            # On sauve le state_dict en mémoire ET sur disque immédiatement —
+            # comme ça même si on coupe la training à la main on a le best.
+            best_state_dict = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            torch.save(best_state_dict, save_path)
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+
+        marker = " ★ NEW BEST" if improved else ""
         print(f"Epoch [{epoch+1}/{EPOCHS}] "
               f"Train Loss: {avg_train_loss:.4f} | "
               f"Val Loss: {avg_val_loss:.4f} | "
-              f"Val Acc: {val_acc:.2f}%")
+              f"Val Acc: {val_acc:.2f}% | "
+              f"LR: {current_lr:.5f}{marker}")
+
+        # Early stopping
+        if epochs_no_improve >= EARLY_STOP_PATIENCE:
+            print(f"\nEarly stopping : pas d'amélioration depuis "
+                  f"{EARLY_STOP_PATIENCE} epochs. Best val acc = {best_val_acc:.2f}% "
+                  f"(epoch {best_epoch}).")
+            break
+
+    # Charge le best state_dict pour la confusion matrix (sinon on calculerait
+    # la matrice avec un modèle peut-être overfit du dernier epoch).
+    if best_state_dict is not None:
+        model.load_state_dict(best_state_dict)
+        print(f"\nMeilleur modèle restauré : val acc {best_val_acc:.2f}% (epoch {best_epoch}).")
 
     # =========================
-    # MATRICE DE CONFUSION
+    # MATRICE DE CONFUSION (sur le best model)
     # =========================
     print("\nCalcul matrice de confusion...")
     compute_confusion_matrix(model, val_loader, device, base_dataset.classes)
 
-    # =========================
-    # SAVE MODEL
-    # =========================
-    torch.save(model.state_dict(), "ocarina_gru_v1.pth")
-    print("Modèle sauvegardé")
+    print(f"\nModèle sauvegardé : {save_path}")
 
     # =========================
     # COURBES
