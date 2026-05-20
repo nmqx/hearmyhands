@@ -41,3 +41,8 @@ Ressources/
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+
+# Livrables individuels (analyse perso de chacun) — restent locaux, pas
+# publiés sur le repo public.
+docs/analyse_individuelle_*.pdf
+docs/analyse_individuelle_*.tex
