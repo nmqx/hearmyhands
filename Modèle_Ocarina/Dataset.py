@@ -6,11 +6,24 @@ import re
 
 
 class SignLanguageDataset(Dataset):
-    def __init__(self, data_dir, max_frames=50, num_features=42, augment=True):
+    def __init__(self, data_dir, max_frames=45, num_features=42, augment=True,
+                 noise_std=4.0, occlusion_prob=0.05):
+        """
+        max_frames    : doit matcher SEQ_LEN côté inférence (HmH/sign_classifier.py).
+                        45 = la valeur utilisée en prod.
+        noise_std     : écart-type du bruit gaussien d'augmentation, en pixels
+                        (les features sont des coords pixels recentrées sur le
+                        wrist, range typique +-200, donc ~5px de bruit est une
+                        perturbation réaliste).
+        occlusion_prob: probabilité qu'une coordonnée individuelle soit "cachée"
+                        (mise à 0) pour simuler une landmark manquante.
+        """
         self.data_dir = data_dir
         self.max_frames = max_frames
         self.num_features = num_features
         self.augment = augment
+        self.noise_std = noise_std
+        self.occlusion_prob = occlusion_prob
         self.samples = []
         
         #liste des fichiers
@@ -101,16 +114,22 @@ class SignLanguageDataset(Dataset):
             tensor_frames = torch.cat((tensor_frames, padding), dim=0)
             
         if self.augment:
-            # aug 1: Bruit offset
-            noise = torch.rand_like(tensor_frames)
-            tensor_frames = tensor_frames + noise
+            # aug 1 : bruit gaussien sur les coordonnées (en pixels)
+            # ATTENTION : la version d'origine faisait `torch.rand_like(x)` qui
+            # génère un bruit dans [0, 1]. Mais les features sont des pixels
+            # (~+-200), donc ce bruit était 200x trop petit pour avoir un effet
+            # réel sur l'entraînement. On passe à du gaussien centré, sigma
+            # contrôlable via self.noise_std (~4-5 px = perturbation réaliste).
+            # On n'ajoute pas de bruit aux frames de padding (vecteurs nuls)
+            # pour éviter de polluer ce qui doit rester "no signal".
+            non_pad = (tensor_frames.abs().sum(dim=1, keepdim=True) > 0).float()
+            noise = torch.randn_like(tensor_frames) * self.noise_std
+            tensor_frames = tensor_frames + noise * non_pad
 
-            # aug 2 : Occlusion légere
-            prob_occlusion = 0.05
-            # mask est un tableau de True et de False
-            mask = torch.rand_like(tensor_frames) > prob_occlusion 
-            # Les valeurs "False" (cachées) deviennent des 0.0, le reste reste intact
-            tensor_frames = tensor_frames * mask.float() 
+            # aug 2 : occlusion légère — chaque coord a une petite proba d'être
+            # masquée à 0 (simule une landmark mal détectée par MediaPipe).
+            mask = (torch.rand_like(tensor_frames) > self.occlusion_prob).float()
+            tensor_frames = tensor_frames * mask
 
         return tensor_frames, label
 
