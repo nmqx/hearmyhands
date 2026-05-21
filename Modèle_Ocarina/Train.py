@@ -1,5 +1,7 @@
 """
 Training script.
+
+CRITICAL FIX vs original:
   -- The split is now built ONCE on a sorted file list, with a fixed
      random seed. The previous version created two separate Dataset
      instances and indexed them with the same permutation -- but each
@@ -175,6 +177,20 @@ def main():
     if best_state is not None:
         model.load_state_dict(best_state)
         print(f"\nRestored best: {best_acc:.2f}% (epoch {best_epoch})")
+
+    # Save history + split so diagnostics.py can reproduce everything later
+    # without re-training. Useful when you want to redo plots, or compare runs.
+    with open(os.path.join(BASE_DIR, "training_history.json"), "w") as f:
+        json.dump({
+            "history": history,
+            "best_epoch": best_epoch,
+            "best_acc": best_acc,
+            "train_files": [p for p, _ in train_samples],
+            "val_files":   [p for p, _ in val_samples],
+            "class_to_idx": class_to_idx,
+            "seed": SEED,
+        }, f, indent=2)
+    print("Saved training_history.json")
 
     # ---------------- DIAGNOSTICS ----------------
     plot_curves(history)
