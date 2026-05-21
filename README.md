@@ -31,7 +31,6 @@ Organisée en trois pôles techniques :
 
 - **Matthieu PERREIRA DA SILVA** — Enseignant-chercheur LS2N, supervision IA
 - **Paul TERRASSIN** — Doctorant, imagerie / IA
-- **Tristan GOMEZ** — Doctorant, vision par ordinateur
 
 **Outils & données**
 
