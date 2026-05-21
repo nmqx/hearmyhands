@@ -1,0 +1,14 @@
+Top 15 confusions (true -> predicted) sur le val set
+==================================================
+  F -> T : 2
+  A -> J : 1
+  Q -> Z : 1
+  Q -> I : 1
+  T -> F : 1
+  R -> U : 1
+  F -> C : 1
+  X -> V : 1
+  M -> V : 1
+  E -> B : 1
+  Q -> V : 1
+  F -> B : 1
