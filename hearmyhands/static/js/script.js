@@ -40,6 +40,61 @@ function initTranslate() {
     const videoContainer = video.closest('.video-container');
     const placeholderEl  = videoContainer ? videoContainer.querySelector('.video-placeholder') : null;
 
+    // ── Debug ping (toggle interface) ────────────────────────────────────────
+    // Émet un event Socket.IO 'ping_test' toutes les ~500 ms et mesure le
+    // RTT côté client. L'indicateur affiche la dernière valeur avec un code
+    // couleur (vert <100 ms, jaune <300, rouge au-delà).
+    const pingToggleBtn = document.getElementById('pingToggleBtn');
+    const pingIndicator = document.getElementById('pingIndicator');
+    const pingValueEl   = document.getElementById('pingValue');
+    let pingTimerId = null;
+    let pingActive  = false;
+    const PING_INTERVAL_MS = 500;
+
+    function setPingIndicator(rtt) {
+        if (!pingIndicator) return;
+        pingValueEl.textContent = `${rtt.toFixed(0)} ms`;
+        pingIndicator.classList.remove('ok', 'warn', 'bad');
+        if (rtt < 100)      pingIndicator.classList.add('ok');
+        else if (rtt < 300) pingIndicator.classList.add('warn');
+        else                pingIndicator.classList.add('bad');
+    }
+
+    function pingOnce() {
+        if (!pingActive) return;
+        const t0 = performance.now();
+        // Timeout safety : si pas d'ack en 3s on log un fail visible
+        let acked = false;
+        const safety = setTimeout(() => {
+            if (!acked) {
+                pingValueEl.textContent = 'timeout';
+                pingIndicator.classList.remove('ok', 'warn');
+                pingIndicator.classList.add('bad');
+            }
+        }, 3000);
+        socket.emit('ping_test', t0, (resp) => {
+            acked = true;
+            clearTimeout(safety);
+            const rtt = performance.now() - t0;
+            setPingIndicator(rtt);
+        });
+    }
+
+    if (pingToggleBtn) {
+        pingToggleBtn.addEventListener('click', () => {
+            pingActive = !pingActive;
+            if (pingIndicator) pingIndicator.hidden = !pingActive;
+            pingToggleBtn.classList.toggle('stop-mode', pingActive);
+            if (pingActive) {
+                pingOnce();
+                pingTimerId = setInterval(pingOnce, PING_INTERVAL_MS);
+            } else {
+                clearInterval(pingTimerId);
+                pingTimerId = null;
+            }
+        });
+    }
+
     // ── Affichage du squelette (toggle interface) ────────────────────────────
     // Persisté en localStorage pour retrouver le réglage entre sessions.
     // Pas un setting de modèle, juste un masquage côté rendu — les prédictions

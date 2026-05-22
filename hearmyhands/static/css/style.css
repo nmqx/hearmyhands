@@ -1221,3 +1221,98 @@ video.active { opacity: 1; }
     .learn-grid { grid-template-columns: 1fr; }
     .learn-ratings { grid-template-columns: 1fr; }
 }
+
+/* ========================================= */
+/* WEBCAM DEBUG (/webcam)                    */
+/* ========================================= */
+.webcam-debug-card { gap: 14px; }
+.webcam-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+.webcam-cell {
+    background: var(--card-tint);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.3s;
+}
+.webcam-cell.stale {
+    border-color: rgba(255, 80, 120, 0.6);
+    opacity: 0.7;
+}
+.webcam-cell-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    font-family: 'TkFixedFont', monospace;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+}
+.webcam-sid {
+    font-weight: 700;
+    color: var(--primary);
+}
+.webcam-meta { font-variant-numeric: tabular-nums; }
+.webcam-cell img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: #000;
+    display: block;
+    transform: scaleX(-1);  /* mirror pour matcher ce que l'utilisateur voit */
+}
+.webcam-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+.webcam-rate {
+    color: var(--text-soft);
+    font-weight: 600;
+}
+.webcam-rate select {
+    margin-left: 6px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: var(--glass-bg);
+    color: var(--text-main);
+}
+.webcam-controls .btn { max-width: 160px; padding: 8px 14px; }
+
+/* ========================================= */
+/* PING DEBUG                                */
+/* ========================================= */
+.ping-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: var(--card-tint);
+    border: 1px solid var(--card-border);
+    font-family: 'TkFixedFont', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    margin-left: 12px;
+    transition: background 0.2s, border-color 0.2s;
+}
+.ping-indicator .ping-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #888;
+    display: inline-block;
+}
+.ping-indicator.ok    .ping-dot { background: #32B47D; }
+.ping-indicator.warn  .ping-dot { background: #FFB347; }
+.ping-indicator.bad   .ping-dot { background: #FF5078; }
+.ping-indicator[hidden] { display: none; }

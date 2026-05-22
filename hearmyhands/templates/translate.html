@@ -49,6 +49,13 @@
             <button id="skeletonToggleBtn" class="btn secondary" title="Affiche ou masque notre squelette custom (Modèle 1). Les mains MediaPipe restent toujours affichées.">
                 <i class="fa-solid fa-person-rays"></i> Squelette : ON
             </button>
+            <button id="pingToggleBtn" class="btn secondary" title="Mesure le round-trip Socket.IO toutes les ~500 ms. Utile pour diagnostiquer la latence réseau pendant une démo.">
+                <i class="fa-solid fa-stopwatch"></i> Ping
+            </button>
+            <span id="pingIndicator" class="ping-indicator" hidden>
+                <span class="ping-dot"></span>
+                <span id="pingValue">— ms</span>
+            </span>
         </div>
 
         <!-- Slider de seuil — visible uniquement en mode dynamique -->
