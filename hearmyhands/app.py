@@ -76,6 +76,13 @@ _EMPTY = {
 _sessions: dict[str, dict] = {}
 _sessions_lock = Lock()
 
+# Cache de la dernière frame brute reçue par session, pour la vue debug
+# /webcam. On garde uniquement les octets JPEG, qui suffisent au rendu :
+# pas de décodage côté serveur, juste un passe-plat avec base64.
+_last_frames: dict[str, tuple[float, bytes]] = {}
+_last_frames_lock = Lock()
+_LAST_FRAME_MAX_AGE_S = 10.0      # une session inactive disparaît au bout de 10s
+
 # ── Inference backend ────────────────────────────────────────────────────────
 # Default: in-process. Single shared engine, loaded once.
 _engine = None
@@ -398,6 +405,45 @@ def monitor():
     return render_template("monitor.html")
 
 
+@app.route("/webcam")
+def webcam_debug():
+    """Vue debug : affiche en grille les webcams des sessions actives.
+
+    À utiliser uniquement en démo / debug — c'est une vue privée des
+    flux webcam de toutes les personnes connectées au même moment.
+    """
+    return render_template("webcam.html")
+
+
+@app.route("/api/debug/sessions")
+def api_debug_sessions():
+    """Liste des sessions Socket.IO actives + leur dernière frame.
+
+    Polling JSON depuis /webcam. La frame est encodée en base64 (data URI
+    directement utilisable comme src d'un <img>).
+    """
+    import base64
+    now = time.time()
+    out = []
+    with _last_frames_lock:
+        # Cleanup des sessions trop vieilles au passage
+        stale = [sid for sid, (ts, _) in _last_frames.items()
+                 if now - ts > _LAST_FRAME_MAX_AGE_S]
+        for sid in stale:
+            _last_frames.pop(sid, None)
+        for sid, (ts, jpeg) in _last_frames.items():
+            age = now - ts
+            out.append({
+                "sid":    sid[:8],                        # tronqué (privacy minimal)
+                "age_ms": int(age * 1000),
+                "size_b": len(jpeg),
+                "image":  "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(),
+            })
+    # Trie par âge croissant (les plus actifs en premier)
+    out.sort(key=lambda s: s["age_ms"])
+    return {"sessions": out, "count": len(out), "server_ts": now}
+
+
 @app.route("/stats")
 def stats():
     if not _PSUTIL:
@@ -444,6 +490,17 @@ def _on_connect():
 def _on_disconnect():
     with _sessions_lock:
         _sessions.pop(request.sid, None)
+    with _last_frames_lock:
+        _last_frames.pop(request.sid, None)
+
+
+@socketio.on("ping_test")
+def _on_ping_test(client_ts=None):
+    """Echo immédiat — sert au bouton debug ping côté client.
+
+    Pas d'inférence, juste un round-trip Socket.IO pour mesurer le RTT.
+    """
+    return {"server_ts": time.time(), "client_ts": client_ts}
 
 
 @socketio.on("frame")
@@ -461,6 +518,10 @@ def handle_frame(image_bytes, flags=None):
     """
     if not image_bytes:
         return _EMPTY
+    # Cache de la dernière frame brute pour la vue debug /webcam. On le fait
+    # avant tout traitement pour rester visible même si l'inférence échoue.
+    with _last_frames_lock:
+        _last_frames[request.sid] = (time.time(), bytes(image_bytes))
     data = _run_frame(image_bytes)
     if data is None:
         return _EMPTY

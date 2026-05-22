@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-wrapper reveal">
+
+    <div class="learn-header">
+        <a href="{{ url_for('home') }}" class="learn-back">
+            <i class="fa-solid fa-arrow-left"></i> Accueil
+        </a>
+        <div class="learn-progress">
+            <i class="fa-solid fa-bug"></i>
+            <span id="webcamCount">0</span> sessions actives
+            · maj <span id="webcamAge">0</span>s
+        </div>
+    </div>
+
+    <div class="glass-card webcam-debug-card">
+        <h3 class="card-title">
+            <i class="fa-solid fa-circle-radiation"></i> Webcams en direct
+        </h3>
+        <p class="card-subtitle">
+            Vue debug — affiche les flux des sessions Socket.IO actives.
+            Refresh à 1 fps. Une session disparaît au bout de 10 s sans frame.
+            <strong>À n'utiliser qu'en démo interne.</strong>
+        </p>
+
+        <div id="webcamGrid" class="webcam-grid"></div>
+
+        <div class="webcam-controls">
+            <label class="webcam-rate">
+                Fréquence :
+                <select id="webcamFps">
+                    <option value="1000">1 fps</option>
+                    <option value="500" selected>2 fps</option>
+                    <option value="250">4 fps</option>
+                    <option value="100">10 fps</option>
+                </select>
+            </label>
+            <button id="webcamPauseBtn" class="btn secondary">
+                <i class="fa-solid fa-pause"></i> Pause
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const grid    = document.getElementById('webcamGrid');
+    const countEl = document.getElementById('webcamCount');
+    const ageEl   = document.getElementById('webcamAge');
+    const fpsSel  = document.getElementById('webcamFps');
+    const pauseBtn= document.getElementById('webcamPauseBtn');
+
+    let intervalMs = parseInt(fpsSel.value, 10);
+    let running    = true;
+    let timerId    = null;
+    let lastFetch  = 0;
+
+    // Réutilise les <div> existants pour éviter de réallouer toute la grille
+    // à chaque tick (sinon le browser blink moche).
+    const cells = new Map();  // sid -> { card, img, meta }
+
+    function makeCell(sid) {
+        const card = document.createElement('div');
+        card.className = 'webcam-cell';
+        card.innerHTML = `
+            <div class="webcam-cell-head">
+                <span class="webcam-sid">${sid}</span>
+                <span class="webcam-meta" data-meta></span>
+            </div>
+            <img alt="webcam ${sid}" data-img>
+        `;
+        grid.appendChild(card);
+        cells.set(sid, {
+            card,
+            img:  card.querySelector('[data-img]'),
+            meta: card.querySelector('[data-meta]'),
+        });
+        return cells.get(sid);
+    }
+
+    async function tick() {
+        if (!running) return;
+        const start = performance.now();
+        try {
+            const r = await fetch('/api/debug/sessions', { cache: 'no-store' });
+            if (!r.ok) throw new Error('http ' + r.status);
+            const data = await r.json();
+            countEl.textContent = data.count;
+            ageEl.textContent = ((performance.now() - start) / 1000).toFixed(1);
+
+            const seen = new Set();
+            data.sessions.forEach(s => {
+                seen.add(s.sid);
+                const cell = cells.get(s.sid) || makeCell(s.sid);
+                cell.img.src = s.image;
+                cell.meta.textContent = `${s.age_ms}ms · ${(s.size_b/1024).toFixed(1)}KB`;
+                // Highlight stale (>2s)
+                cell.card.classList.toggle('stale', s.age_ms > 2000);
+            });
+            // Retire les cellules pour les sessions disparues
+            cells.forEach((c, sid) => {
+                if (!seen.has(sid)) {
+                    c.card.remove();
+                    cells.delete(sid);
+                }
+            });
+        } catch (e) {
+            console.warn('[webcam debug]', e);
+        }
+    }
+
+    function schedule() {
+        clearInterval(timerId);
+        timerId = setInterval(tick, intervalMs);
+    }
+
+    fpsSel.addEventListener('change', () => {
+        intervalMs = parseInt(fpsSel.value, 10);
+        schedule();
+    });
+    pauseBtn.addEventListener('click', () => {
+        running = !running;
+        pauseBtn.innerHTML = running
+            ? '<i class="fa-solid fa-pause"></i> Pause'
+            : '<i class="fa-solid fa-play"></i> Reprendre';
+    });
+
+    tick();          // premier hit immédiat
+    schedule();
+})();
+</script>
+{% endblock %}
