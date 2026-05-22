@@ -625,8 +625,21 @@ def handle_frame(image_bytes, flags=None):
         return _EMPTY
     # Cache de la dernière frame brute pour la vue debug /webcam. On le fait
     # avant tout traitement pour rester visible même si l'inférence échoue.
-    with _last_frames_lock:
-        _last_frames[request.sid] = (time.time(), bytes(image_bytes))
+    # Wrappé en try/except : le cache /webcam est purement debug, il ne doit
+    # JAMAIS empêcher la traduction de se faire. Avant ce fix un bytes(image)
+    # qui crashait remontait l'exception jusqu'au handler -> pas d'ack envoyé
+    # au client -> plus aucune lettre/sign retournée -> "ça traduit plus rien".
+    try:
+        if isinstance(image_bytes, (bytes, bytearray, memoryview)):
+            cached = bytes(image_bytes)
+        else:
+            cached = None
+        if cached is not None:
+            with _last_frames_lock:
+                _last_frames[request.sid] = (time.time(), cached)
+    except Exception as exc:
+        _log.debug("webcam cache skipped: %s", exc)
+
     data = _run_frame(image_bytes)
     if data is None:
         return _EMPTY
