@@ -519,22 +519,37 @@ function initTranslate() {
         if (!w || !h) return;
         const y = h * thresholdRatio;
         thCtx.clearRect(0, 0, w, h);
-        // Ligne en pointillés, verte si la main est au-dessus, rouge sinon
-        thCtx.lineWidth = 3;
-        thCtx.strokeStyle = active ? '#32ff78' : '#ff5078';
-        thCtx.setLineDash([12, 8]);
-        thCtx.beginPath();
-        thCtx.moveTo(0, y);
-        thCtx.lineTo(w, y);
-        thCtx.stroke();
-        // Label avec pastille
+
+        // Petit repère latéral : même seuil logique, mais sans barre plein écran.
+        const color = active ? '#32ff78' : '#ff5078';
+        const markerW = Math.min(110, Math.max(70, w * 0.18));
+        const x1 = w - 14;
+        const x0 = x1 - markerW;
+        thCtx.lineWidth = 4;
+        thCtx.strokeStyle = color;
         thCtx.setLineDash([]);
-        thCtx.font = 'bold 14px sans-serif';
-        thCtx.fillStyle = active ? '#32ff78' : '#ff5078';
-        const label = active
-            ? '● Signe en cours — redescends pour valider'
-            : '○ Lève la main au-dessus pour commencer un signe';
-        thCtx.fillText(label, 10, y - 8);
+        thCtx.beginPath();
+        thCtx.moveTo(x0, y);
+        thCtx.lineTo(x1, y);
+        thCtx.stroke();
+
+        thCtx.fillStyle = color;
+        thCtx.beginPath();
+        thCtx.arc(x0, y, 5, 0, 2 * Math.PI);
+        thCtx.fill();
+
+        thCtx.font = 'bold 12px sans-serif';
+        const label = active ? 'Signe' : 'Seuil';
+        const textW = thCtx.measureText(label).width;
+        const padX = 8;
+        const boxW = textW + padX * 2;
+        const boxH = 22;
+        const boxX = Math.max(8, x0 - boxW - 8);
+        const boxY = Math.max(6, Math.min(h - boxH - 6, y - boxH / 2));
+        thCtx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+        thCtx.fillRect(boxX, boxY, boxW, boxH);
+        thCtx.fillStyle = color;
+        thCtx.fillText(label, boxX + padX, boxY + 15);
     }
 
     function onHandsResults(results) {
