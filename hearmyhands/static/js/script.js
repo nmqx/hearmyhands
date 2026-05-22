@@ -36,8 +36,33 @@ function initTranslate() {
     const thresholdControl = document.getElementById('thresholdControl');
     const thresholdSlider  = document.getElementById('thresholdSlider');
     const thresholdValue   = document.getElementById('thresholdValue');
+    const skeletonToggleBtn = document.getElementById('skeletonToggleBtn');
     const videoContainer = video.closest('.video-container');
     const placeholderEl  = videoContainer ? videoContainer.querySelector('.video-placeholder') : null;
+
+    // ── Affichage du squelette (toggle interface) ────────────────────────────
+    // Persisté en localStorage pour retrouver le réglage entre sessions.
+    // Pas un setting de modèle, juste un masquage côté rendu — les prédictions
+    // continuent de tourner normalement quand le squelette est OFF.
+    let skeletonVisible = (localStorage.getItem('hmh-show-skeleton') !== '0');
+    function refreshSkeletonBtn() {
+        if (!skeletonToggleBtn) return;
+        skeletonToggleBtn.innerHTML = skeletonVisible
+            ? '<i class="fa-solid fa-person-rays"></i> Squelette : ON'
+            : '<i class="fa-solid fa-eye-slash"></i> Squelette : OFF';
+    }
+    refreshSkeletonBtn();
+    if (skeletonToggleBtn) {
+        skeletonToggleBtn.addEventListener('click', () => {
+            skeletonVisible = !skeletonVisible;
+            try { localStorage.setItem('hmh-show-skeleton', skeletonVisible ? '1' : '0'); } catch (e) {}
+            refreshSkeletonBtn();
+            // Si on vient de désactiver, on efface immédiatement le canvas
+            // (sinon la dernière frame reste affichée jusqu'à la prochaine
+            // prédiction). Si on réactive, ça redessine au prochain ack.
+            if (!skeletonVisible) skelCtx.clearRect(0, 0, skeletonCanvas.width, skeletonCanvas.height);
+        });
+    }
 
     // ── Seuil (mode dynamique uniquement) ────────────────────────────────────
     // Hauteur du seuil = fraction de la hauteur visible. 0 = haut, 1 = bas.
@@ -287,9 +312,13 @@ function initTranslate() {
         }
         alignCanvasWithVideo();
         skelCtx.clearRect(0, 0, w, h);
-        // Le squelette est TOUJOURS dessiné (même quand la main est sous le seuil).
-        if (data.skeleton && data.skeleton.length >= 9) drawSkeleton(data.skeleton);
-        if (data.hands && data.hands.length)            drawHands(data.hands);
+        // Squelette dessiné uniquement si l'utilisateur n'a pas désactivé
+        // l'overlay (toggle dans la barre de contrôles, persisté en
+        // localStorage).
+        if (skeletonVisible) {
+            if (data.skeleton && data.skeleton.length >= 9) drawSkeleton(data.skeleton);
+            if (data.hands && data.hands.length)            drawHands(data.hands);
+        }
 
         // NB : lastHandTopY est mis à jour par MediaPipe Hands client-side
         // (voir onHandsResults), pas ici. Ça évite de dépendre de la latence
