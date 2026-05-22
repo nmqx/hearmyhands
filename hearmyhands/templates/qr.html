@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="main-wrapper reveal qr-wrapper">
+
+    <div class="glass-card qr-card">
+        <h2 class="qr-title">Scanne pour rejoindre</h2>
+        <p class="qr-subtitle">HearMyHands</p>
+
+        <div class="qr-image-wrap">
+            <img class="qr-image"
+                 src="data:image/png;base64,{{ qr_png }}"
+                 alt="QR code vers {{ target }}">
+        </div>
+
+        <a class="qr-url" href="{{ target }}" target="_blank" rel="noopener">
+            {{ target }}
+        </a>
+
+        <p class="qr-hint">
+            <i class="fa-solid fa-mobile-screen"></i>
+            Ouvre l'appareil photo de ton téléphone, vise le QR, ouvre le lien.
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -1223,6 +1223,66 @@ video.active { opacity: 1; }
 }
 
 /* ========================================= */
+/* /qr — page QR code (démo)                 */
+/* ========================================= */
+.qr-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 200px);
+}
+.qr-card {
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+    padding: 36px 28px;
+    gap: 18px;
+    align-items: center;
+}
+.qr-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+    margin: 0;
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+}
+.qr-subtitle {
+    margin: 0;
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+.qr-image-wrap {
+    background: white;
+    padding: 14px;
+    border-radius: 18px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    line-height: 0;
+}
+.qr-image {
+    display: block;
+    width: 280px;
+    height: 280px;
+    image-rendering: pixelated;  /* nettes arêtes même downscaled */
+}
+.qr-url {
+    color: var(--primary);
+    font-family: 'TkFixedFont', monospace;
+    font-size: 1.05rem;
+    text-decoration: none;
+    word-break: break-all;
+}
+.qr-url:hover { text-decoration: underline; }
+.qr-hint {
+    color: var(--text-soft);
+    font-size: 0.92rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* ========================================= */
 /* WEBCAM DEBUG (/webcam)                    */
 /* ========================================= */
 .webcam-debug-card { gap: 14px; }
