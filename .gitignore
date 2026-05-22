@@ -46,3 +46,7 @@ Ressources/
 # publiés sur le repo public.
 docs/analyse_individuelle_*.pdf
 docs/analyse_individuelle_*.tex
+
+# Hall of fame /image : captures debug de chaque IP qui s'est connectée.
+# Reste local côté VM, jamais commit.
+hearmyhands/static/hall_of_fame/
