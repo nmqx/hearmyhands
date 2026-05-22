@@ -36,9 +36,12 @@ def sign_predict():
     seq = payload.get("sequence")
     if not isinstance(seq, list):
         return jsonify({"error": "missing 'sequence' (list of frames)"}), 400
-    result = engine.predict_sign(seq)
+    mask = payload.get("mask")
+    if mask is not None and not isinstance(mask, list):
+        return jsonify({"error": "'mask' must be a list aligned with sequence"}), 400
+    result = engine.predict_sign(seq, mask)
     if result is None:
-        return jsonify({"error": "bad sequence shape (need 60 × 42)"}), 400
+        return jsonify({"error": "bad sequence shape (need 45 × 42, mask 45)"}), 400
     return jsonify(result)
 
 

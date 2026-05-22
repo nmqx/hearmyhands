@@ -115,13 +115,15 @@ class SignClassifier:
             return None
 
     @torch.no_grad()
-    def predict(self, sequence: list[list[float]]) -> tuple[str, float] | None:
-        """sequence : list de frames, chacune un vecteur 42-float [x0,y0,...,x20,y20].
+    def predict(self, sequence: list[list[float]],
+                mask: list[float] | None = None) -> tuple[str, float] | None:
+        """sequence : list[SEQ_LEN] de frames (chacune 42 floats).
+        mask     : list[SEQ_LEN] de 0/1 (1 = main détectée, 0 = padding).
+                   None -> all-ones (compat avec l'ancien code serveur qui
+                   ne poussait que des frames réelles).
 
-        Côté serveur, la deque `state['buf']` ne pousse une frame QUE quand
-        une main est détectée → toutes les SEQ_LEN frames sont "réelles",
-        donc le mask est all-ones. Si jamais on injecte du padding plus tard
-        (queue plus longue, etc.), le calcul de mask devra être adapté.
+        Aligné avec Modèle_Ocarina/demo.py::_predict : le mask permet au
+        modèle d'ignorer les frames de padding via masked mean-pool.
         """
         if len(sequence) != self.SEQ_LEN:
             return None
@@ -132,8 +134,16 @@ class SignClassifier:
         if x.shape != (self.SEQ_LEN, self.INPUT_SIZE):
             return None
         x = x.unsqueeze(0)                                 # [1, T, 42]
-        mask = torch.ones(1, self.SEQ_LEN, device=self.device, dtype=torch.float32)
-        logits = self.model(x, mask=mask)[0]
+        if mask is None:
+            m = torch.ones(1, self.SEQ_LEN, device=self.device, dtype=torch.float32)
+        else:
+            if len(mask) != self.SEQ_LEN:
+                return None
+            try:
+                m = torch.tensor(mask, dtype=torch.float32, device=self.device).unsqueeze(0)
+            except (ValueError, TypeError):
+                return None
+        logits = self.model(x, mask=m)[0]
         probs = torch.softmax(logits, dim=-1)
         idx = int(torch.argmax(probs).item())
         return self.classes[idx], float(probs[idx].item())
