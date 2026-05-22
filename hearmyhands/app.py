@@ -54,6 +54,11 @@ MIN_REAL_FRAMES = 5
 # Seuil de confidence GRU pour qu'une prédiction compte pour le hall of fame.
 # Plus exigeant que le seuil client (0.7) pour ne pas capturer du bruit.
 MIN_HALL_SIGN_CONF = 0.75
+# Délai après connect pour la capture time-based du hall of fame. Permet
+# de fonctionner aussi en mode statique (où aucune prédiction GRU ne
+# tourne) : on attend juste 3s que la webcam soit bien stable et on
+# prend une photo.
+HALL_DELAY_S = 3.0
 
 # Espace pixel canonique sur lequel le GRU Ocarina a été entraîné
 # (mod_json.py force la webcam en 640x480 lors de la capture du dataset)
@@ -607,11 +612,13 @@ def _on_connect():
         # mask : deque alignée, 1.0 si frame avec main, 0.0 sinon
         # tick : compteur de frames pour le throttling SIGN_EVERY_N
         # last_sign / sign_count / hall_saved : trackés pour le hall of fame
-        #   on capture l'image au 2e signe DIFFÉRENT détecté dans la session.
+        #   on capture après HALL_DELAY_S secondes (peu importe le mode)
+        #   OU au 2e sign détecté en dynamique (whichever fires first).
         _sessions[request.sid] = {
             "buf":  deque(maxlen=SEQ_LEN),
             "mask": deque(maxlen=SEQ_LEN),
             "tick": 0,
+            "connect_ts": time.time(),
             "last_sign":  None,
             "sign_count": 0,
             "hall_saved": False,
@@ -688,32 +695,42 @@ def handle_frame(image_bytes, flags=None):
         request.sid, hands, handedness, img_w, img_h, want_sign,
     )
 
-    # ── Hall of fame : capture sur le 2e sign détecté de la session ──
-    # On compte uniquement les transitions vers une lettre DIFFÉRENTE de la
-    # précédente (sinon une seule gesture continue qui ressort la même
-    # prédiction sur plusieurs ticks compterait pour 5). Sauvegarde une
-    # seule fois par session — sur reconnexion de la même IP, le fichier
-    # est overwrite (mtime change).
+    # ── Hall of fame : capture une seule fois par session ──
+    # Deux triggers, whichever fires first :
+    #   A) Time-based : 3s après connect (HALL_DELAY_S). Marche dans
+    #      n'importe quel mode (statique, dynamique, learn, etc.) puisqu'il
+    #      ne dépend que de l'écoulement du temps.
+    #   B) Sign-based : 2e signe DIFFÉRENT détecté avec conf >= 0.75.
+    #      Capture un moment "représentatif" en mode dynamique si l'user
+    #      signe vite avant les 3s.
+    # Une seule sauvegarde par session (flag hall_saved). Sur reconnexion
+    # de la même IP, le fichier est overwrite (mtime change).
     try:
-        if sign and (sign_conf or 0) >= MIN_HALL_SIGN_CONF:
-            with _sessions_lock:
-                st = _sessions.get(request.sid)
-                if st is not None and st.get("last_sign") != sign:
+        should_save = False
+        with _sessions_lock:
+            st = _sessions.get(request.sid)
+            if st is not None and not st.get("hall_saved"):
+                # Trigger A : 3 secondes écoulées
+                age = time.time() - st.get("connect_ts", time.time())
+                if age >= HALL_DELAY_S:
+                    should_save = True
+                # Trigger B : 2e signe différent
+                elif sign and (sign_conf or 0) >= MIN_HALL_SIGN_CONF \
+                        and st.get("last_sign") != sign:
                     st["last_sign"] = sign
                     st["sign_count"] = st.get("sign_count", 0) + 1
-                    should_save = (st["sign_count"] == 2 and not st.get("hall_saved"))
-                    if should_save:
-                        st["hall_saved"] = True
-                else:
-                    should_save = False
-            if should_save:
-                with _session_ips_lock:
-                    ip = _session_ips.get(request.sid, "unknown")
-                with _last_frames_lock:
-                    cached = _last_frames.get(request.sid)
-                if cached is not None:
-                    _save_hall_frame(ip, cached[1])
-                    _log.info("hall_of_fame: saved %s after 2nd sign", ip)
+                    if st["sign_count"] == 2:
+                        should_save = True
+                if should_save:
+                    st["hall_saved"] = True
+        if should_save:
+            with _session_ips_lock:
+                ip = _session_ips.get(request.sid, "unknown")
+            with _last_frames_lock:
+                cached = _last_frames.get(request.sid)
+            if cached is not None:
+                _save_hall_frame(ip, cached[1])
+                _log.info("hall_of_fame: saved %s", ip)
     except Exception as exc:
         _log.debug("hall_of_fame save skipped: %s", exc)
 

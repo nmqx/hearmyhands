@@ -185,9 +185,10 @@ body {
     text-align: center; position: relative; padding: 20px;
 }
 .hero-logo {
+    display: block;
     max-width: 100%; height: auto;
     max-height: clamp(200px, 35vh, 400px);
-    margin-bottom: 30px;
+    margin: 0 auto 30px;            /* centre horizontalement, marge sous */
     border-radius: 28px;
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
     transition: box-shadow 0.3s ease, transform 0.3s ease;
@@ -196,7 +197,7 @@ body {
 /* Swap light / dark identique à la nav */
 .hero-logo-dark { display: none; }
 [data-theme="dark"] .hero-logo-light { display: none; }
-[data-theme="dark"] .hero-logo-dark  { display: block; }
+[data-theme="dark"] .hero-logo-dark  { display: block; margin: 0 auto 30px; }
 [data-theme="dark"] .hero-logo {
     box-shadow: 0 14px 40px rgba(107, 176, 255, 0.25);
 }
