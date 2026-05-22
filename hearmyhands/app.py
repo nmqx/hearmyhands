@@ -454,14 +454,17 @@ def handle_frame(image_bytes, flags=None):
     if data is None:
         return _EMPTY
 
-    hands  = data.get("hands", []) or []
-    img_w  = data.get("image_width", 0) or 0
-    img_h  = data.get("image_height", 0) or 0
+    hands       = data.get("hands", []) or []
+    handedness  = data.get("handedness", []) or []
+    img_w       = data.get("image_width", 0) or 0
+    img_h       = data.get("image_height", 0) or 0
 
     if flags is None or not isinstance(flags, dict):
         flags = {}
     want_sign = bool(flags.get("predict_sign", True))
-    sign, sign_conf = _maybe_predict_sign(request.sid, hands, img_w, img_h, want_sign)
+    sign, sign_conf = _maybe_predict_sign(
+        request.sid, hands, handedness, img_w, img_h, want_sign,
+    )
 
     return {
         "skeleton":        data.get("keypoints"),
@@ -473,8 +476,13 @@ def handle_frame(image_bytes, flags=None):
     }
 
 
-def _maybe_predict_sign(sid, hands, img_w, img_h, want_sign=True):
-    """Maintient toujours le buffer ; n'appelle le GRU que si want_sign."""
+def _maybe_predict_sign(sid, hands, handedness, img_w, img_h, want_sign=True):
+    """Maintient toujours le buffer ; n'appelle le GRU que si want_sign.
+
+    handedness : liste alignée sur hands, valeurs "Right" / "Left".
+                 Utilisée par _normalize_hand pour mirrorer si la main
+                 détectée n'est pas du côté canonique (Right en V2).
+    """
     if _sign_api_disabled:
         return None, None
     with _sessions_lock:
@@ -486,7 +494,9 @@ def _maybe_predict_sign(sid, hands, img_w, img_h, want_sign=True):
         # un buffer plein prêt à l'emploi (sinon il faudrait 1.5s pour
         # le remplir à 30 fps).
         if hands and img_w and img_h:
-            state["buf"].append(_normalize_hand(hands[0], img_w, img_h))
+            hand0 = hands[0]
+            side = handedness[0] if handedness else "Right"
+            state["buf"].append(_normalize_hand(hand0, img_w, img_h, side))
         state["tick"] += 1
         if not want_sign:
             return None, None
@@ -501,25 +511,52 @@ def _maybe_predict_sign(sid, hands, img_w, img_h, want_sign=True):
     return result.get("sign"), result.get("confidence")
 
 
-def _normalize_hand(hand, img_w, img_h):
-    """Pré-traitement à l'identique de Modèle_Ocarina/Dataset.py:
+# ── Pré-traitement V2 ────────────────────────────────────────────────────────
+# Doit rester strictement aligné avec
+# Modèle_Ocarina/Dataset.py::SignLanguageDataset.normalize_frame :
+#   1) coordonnées normalisées par l'image (-> [0, 1])
+#   2) handedness canonicalization : si la main est gauche, miroir x
+#   3) centrage sur le wrist (landmark 0)
+#   4) division par la taille de main (distance wrist <-> middle MCP)
+_WRIST_IDX      = 0
+_MIDDLE_MCP_IDX = 9
+_CANONICAL_HAND = "Right"
 
-    - rescale les landmarks depuis l'image runtime vers l'espace pixel
-      d'entraînement (640x480)
-    - centre tous les points sur le poignet (point 0) — invariance en
-      translation
-    Retourne une liste plate de 42 floats [x0, y0, x1, y1, …].
+
+def _normalize_hand(hand, img_w, img_h, handedness="Right"):
+    """Retourne une liste plate de 42 floats normalisés V2.
+
+    hand        : 21 [x, y] en coordonnées pixel runtime
+    img_w/img_h : dimensions de l'image runtime
+    handedness  : "Right" ou "Left" (vient de MediaPipe.handedness)
     """
-    if not hand or not img_w or not img_h:
+    if not hand or not img_w or not img_h or len(hand) < 21:
         return [0.0] * 42
-    sx = TRAIN_W / img_w
-    sy = TRAIN_H / img_h
-    scaled = [(pt[0] * sx, pt[1] * sy) for pt in hand]
-    wx, wy = scaled[0]
-    out = []
-    for x, y in scaled:
-        out.append(x - wx)
-        out.append(y - wy)
+
+    # 1) en coords normalisées [0, 1]
+    xs = [pt[0] / img_w for pt in hand]
+    ys = [pt[1] / img_h for pt in hand]
+
+    # 2) mirror si pas du côté canonique
+    if handedness and handedness != _CANONICAL_HAND:
+        xs = [1.0 - x for x in xs]
+
+    # 3) centrage sur le wrist
+    wx, wy = xs[_WRIST_IDX], ys[_WRIST_IDX]
+    xs = [x - wx for x in xs]
+    ys = [y - wy for y in ys]
+
+    # 4) scale par la taille de main = |wrist -> middle MCP|
+    hs = (xs[_MIDDLE_MCP_IDX] ** 2 + ys[_MIDDLE_MCP_IDX] ** 2) ** 0.5
+    if hs > 1e-6:
+        xs = [x / hs for x in xs]
+        ys = [y / hs for y in ys]
+
+    # Interleave x0,y0,x1,y1,...
+    out = [0.0] * 42
+    for i in range(21):
+        out[2 * i]     = xs[i]
+        out[2 * i + 1] = ys[i]
     return out
 
 
