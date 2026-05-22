@@ -6,7 +6,7 @@
     <title>HearMyHands</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=14">
     <!-- Theme: applied before paint to avoid white flash on dark mode load -->
     <script>
       (function () {
@@ -24,7 +24,10 @@
     <!-- Barre de Navigation Globale -->
     <nav class="navbar">
         <a href="{{ url_for('home') }}" class="nav-brand">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="nav-logo">
+            <img src="{{ url_for('static', filename='images/logo.png') }}"
+                 alt="Logo HearMyHands" class="nav-logo nav-logo-light">
+            <img src="{{ url_for('static', filename='images/logo_dark.png') }}"
+                 alt="" class="nav-logo nav-logo-dark" aria-hidden="true">
             <span>HearMy<span class="highlight">Hands</span></span>
         </a>
 
@@ -70,6 +73,6 @@
       })();
     </script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='js/script.js') }}?v=20"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=21"></script>
 </body>
 </html>

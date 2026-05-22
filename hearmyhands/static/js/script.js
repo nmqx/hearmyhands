@@ -406,8 +406,15 @@ function initTranslate() {
                     }
                 }
                 // Affichage live tant qu'on signe : on montre la tentative
-                // courante du GRU (sera commit au moment de la descente).
-                if (currentLetterEl) currentLetterEl.textContent = data.sign ?? '-';
+                // courante du GRU. Le GRU ne sort une prédiction QUE toutes
+                // les SIGN_EVERY_N frames (sinon data.sign est null), donc
+                // si on faisait `data.sign ?? '-'` on alternerait entre la
+                // lettre et '-' à chaque frame -> flicker visuel insupportable.
+                // Solution : on ne met à jour QUE quand data.sign est non-nul,
+                // sinon on garde la dernière valeur affichée.
+                if (currentLetterEl && data.sign) {
+                    currentLetterEl.textContent = data.sign;
+                }
             } else {
                 // Main sous le seuil : on tient le display à '-' (idle).
                 if (currentLetterEl) currentLetterEl.textContent = '-';

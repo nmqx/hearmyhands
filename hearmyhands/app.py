@@ -51,6 +51,9 @@ SIGN_EVERY_N    = 3
 # Nombre minimum de frames AVEC main détectée avant de tenter une prédiction.
 # Sinon le GRU tournerait sur un buffer quasi-vide -> bruit pur.
 MIN_REAL_FRAMES = 5
+# Seuil de confidence GRU pour qu'une prédiction compte pour le hall of fame.
+# Plus exigeant que le seuil client (0.7) pour ne pas capturer du bruit.
+MIN_HALL_SIGN_CONF = 0.75
 
 # Espace pixel canonique sur lequel le GRU Ocarina a été entraîné
 # (mod_json.py force la webcam en 640x480 lors de la capture du dataset)
@@ -496,52 +499,76 @@ def _require_webcam_auth(view):
     return wrapper
 
 
-@app.route("/webcam")
+# ── Hall of fame /image ─────────────────────────────────────────────────────
+# Une capture par IP, prise quand l'utilisateur fait son 2e signe détecté
+# de la session. Si la même IP revient plus tard, la nouvelle capture
+# remplace l'ancienne (overwrite simple sur disque). Stocké côté serveur
+# uniquement (pas en git), gitignored.
+HALL_DIR = os.path.join(_HERE, "static", "hall_of_fame")
+os.makedirs(HALL_DIR, exist_ok=True)
+
+
+def _safe_ip_filename(ip: str) -> str:
+    """Sanitize une IP en nom de fichier (IPv4 / IPv6) — uniquement chiffres,
+    points et tirets, max 50 chars. Évite les surprises de path traversal."""
+    cleaned = re.sub(r"[^0-9a-fA-F.:\-]", "", ip or "")
+    cleaned = cleaned.replace(":", "_")  # IPv6 friendly file name
+    return (cleaned or "unknown")[:50]
+
+
+def _save_hall_frame(ip: str, jpeg: bytes) -> None:
+    """Écrit la frame JPEG sur disque pour cette IP (overwrite)."""
+    try:
+        path = os.path.join(HALL_DIR, _safe_ip_filename(ip) + ".jpg")
+        with open(path, "wb") as f:
+            f.write(jpeg)
+    except OSError as exc:
+        _log.warning("hall_of_fame write failed for %s: %s", ip, exc)
+
+
+@app.route("/image")
 @_require_webcam_auth
-def webcam_debug():
-    """Vue debug : affiche en grille les webcams des sessions actives.
-
-    À utiliser uniquement en démo / debug — c'est une vue privée des
-    flux webcam de toutes les personnes connectées au même moment.
-    Protégé par Basic Auth (password = $WEBCAM_DEBUG_PASS, défaut 'admin').
+def image_hall():
+    """Hall of fame : capture de chaque IP qui s'est connectée et a signé
+    au moins 2 fois. Protégé par Basic Auth (password = WEBCAM_DEBUG_PASS).
     """
-    return render_template("webcam.html")
+    return render_template("image.html")
 
 
-@app.route("/api/debug/sessions")
+@app.route("/api/debug/hall")
 @_require_webcam_auth
-def api_debug_sessions():
-    """Liste des sessions Socket.IO actives + leur dernière frame.
+def api_debug_hall():
+    """Liste les fichiers du hall_of_fame avec leur mtime.
 
-    Polling JSON depuis /webcam. La frame est encodée en base64 (data URI
-    directement utilisable comme src d'un <img>).
+    Polling JSON depuis /image. Les images elles-mêmes sont servies par
+    le static handler de Flask (`/static/hall_of_fame/<filename>`) ; on
+    n'inline pas le base64 ici pour pouvoir cacher individuellement et
+    éviter de cracher 10 MB de JSON dans la nature.
     """
-    import base64
-    now = time.time()
     out = []
-    with _last_frames_lock:
-        # Cleanup des sessions trop vieilles au passage
-        stale = [sid for sid, (ts, _) in _last_frames.items()
-                 if now - ts > _LAST_FRAME_MAX_AGE_S]
-        for sid in stale:
-            _last_frames.pop(sid, None)
-        items = list(_last_frames.items())
-    # On consulte les IPs hors du verrou frames pour ne pas créer de
-    # contention entre les deux dicts.
-    with _session_ips_lock:
-        ips = {sid: _session_ips.get(sid, "?") for sid, _ in items}
-    for sid, (ts, jpeg) in items:
-        age = now - ts
-        out.append({
-            "sid":    sid[:8],                        # gardé pour debug avancé
-            "ip":     ips.get(sid, "?"),
-            "age_ms": int(age * 1000),
-            "size_b": len(jpeg),
-            "image":  "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(),
-        })
-    # Trie par âge croissant (les plus actifs en premier)
-    out.sort(key=lambda s: s["age_ms"])
-    return {"sessions": out, "count": len(out), "server_ts": now}
+    try:
+        for name in sorted(os.listdir(HALL_DIR)):
+            if not name.endswith(".jpg"):
+                continue
+            full = os.path.join(HALL_DIR, name)
+            try:
+                st = os.stat(full)
+            except OSError:
+                continue
+            # On reconstruit l'IP d'affichage depuis le nom de fichier
+            # (replace _ -> : pour l'IPv6).
+            ip = name[:-4].replace("_", ":")
+            out.append({
+                "ip":    ip,
+                "url":   f"/static/hall_of_fame/{name}?v={int(st.st_mtime)}",
+                "mtime": int(st.st_mtime),
+                "size":  st.st_size,
+            })
+    except OSError as exc:
+        _log.warning("hall_of_fame read failed: %s", exc)
+    # Plus récents en premier
+    out.sort(key=lambda e: -e["mtime"])
+    return {"entries": out, "count": len(out), "server_ts": time.time()}
 
 
 @app.route("/stats")
@@ -579,10 +606,15 @@ def _on_connect():
         # buf  : deque de 42-vecteurs, padding à zéro si pas de main détectée
         # mask : deque alignée, 1.0 si frame avec main, 0.0 sinon
         # tick : compteur de frames pour le throttling SIGN_EVERY_N
+        # last_sign / sign_count / hall_saved : trackés pour le hall of fame
+        #   on capture l'image au 2e signe DIFFÉRENT détecté dans la session.
         _sessions[request.sid] = {
             "buf":  deque(maxlen=SEQ_LEN),
             "mask": deque(maxlen=SEQ_LEN),
             "tick": 0,
+            "last_sign":  None,
+            "sign_count": 0,
+            "hall_saved": False,
         }
     # Mémorise l'IP pour la vue debug
     with _session_ips_lock:
@@ -655,6 +687,35 @@ def handle_frame(image_bytes, flags=None):
     sign, sign_conf = _maybe_predict_sign(
         request.sid, hands, handedness, img_w, img_h, want_sign,
     )
+
+    # ── Hall of fame : capture sur le 2e sign détecté de la session ──
+    # On compte uniquement les transitions vers une lettre DIFFÉRENTE de la
+    # précédente (sinon une seule gesture continue qui ressort la même
+    # prédiction sur plusieurs ticks compterait pour 5). Sauvegarde une
+    # seule fois par session — sur reconnexion de la même IP, le fichier
+    # est overwrite (mtime change).
+    try:
+        if sign and (sign_conf or 0) >= MIN_HALL_SIGN_CONF:
+            with _sessions_lock:
+                st = _sessions.get(request.sid)
+                if st is not None and st.get("last_sign") != sign:
+                    st["last_sign"] = sign
+                    st["sign_count"] = st.get("sign_count", 0) + 1
+                    should_save = (st["sign_count"] == 2 and not st.get("hall_saved"))
+                    if should_save:
+                        st["hall_saved"] = True
+                else:
+                    should_save = False
+            if should_save:
+                with _session_ips_lock:
+                    ip = _session_ips.get(request.sid, "unknown")
+                with _last_frames_lock:
+                    cached = _last_frames.get(request.sid)
+                if cached is not None:
+                    _save_hall_frame(ip, cached[1])
+                    _log.info("hall_of_fame: saved %s after 2nd sign", ip)
+    except Exception as exc:
+        _log.debug("hall_of_fame save skipped: %s", exc)
 
     return {
         "skeleton":        data.get("keypoints"),
