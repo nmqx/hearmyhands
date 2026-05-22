@@ -291,7 +291,13 @@ function initTranslate() {
                 return;
             }
             const buf = await blob.arrayBuffer();
-            socket.emit('frame', buf, (response) => {
+            // Le serveur n'inférera le GRU que si predict_sign === true.
+            // - Mode statique  -> jamais besoin du GRU
+            // - Mode dynamique -> seulement quand la main est au-dessus du
+            //                     seuil (inutile de mouliner le GRU pendant
+            //                     les moments idle).
+            const flags = { predict_sign: (mode === 'dynamic' && handAboveNow) };
+            socket.emit('frame', buf, flags, (response) => {
                 clearTimeout(releaseTimer);
                 inFlightCount = Math.max(0, inFlightCount - 1);
                 if (!isPredicting) return;
@@ -312,13 +318,15 @@ function initTranslate() {
         }
         alignCanvasWithVideo();
         skelCtx.clearRect(0, 0, w, h);
-        // Squelette dessiné uniquement si l'utilisateur n'a pas désactivé
-        // l'overlay (toggle dans la barre de contrôles, persisté en
-        // localStorage).
-        if (skeletonVisible) {
-            if (data.skeleton && data.skeleton.length >= 9) drawSkeleton(data.skeleton);
-            if (data.hands && data.hands.length)            drawHands(data.hands);
+        // Squelette custom (notre Modèle 1, CSPDarknet -> 9 keypoints) :
+        // toggle ON/OFF via le bouton. Les mains (MediaPipe) restent
+        // toujours visibles parce que c'est notre détection la plus fiable
+        // et qu'on veut qu'elles s'affichent même quand l'utilisateur a
+        // masqué notre squelette custom.
+        if (skeletonVisible && data.skeleton && data.skeleton.length >= 9) {
+            drawSkeleton(data.skeleton);
         }
+        if (data.hands && data.hands.length) drawHands(data.hands);
 
         // NB : lastHandTopY est mis à jour par MediaPipe Hands client-side
         // (voir onHandsResults), pas ici. Ça évite de dépendre de la latence
@@ -330,19 +338,25 @@ function initTranslate() {
             const letter = (data.letter && conf >= MIN_LETTER_CONFIDENCE) ? data.letter : null;
             updateLetter(letter);
         } else {
-            // Dynamique : on stocke la dernière prédiction GRU valide, on ne
-            // commit PAS tout de suite. handleSignTransition() commitera quand
-            // la main repasse sous le seuil (geste terminé).
+            // Dynamique : on stocke la dernière prédiction GRU valide pendant
+            // que la main est AU-DESSUS du seuil. En-dessous, on n'enregistre
+            // rien et on n'affiche rien -- sinon le display spamme le sign
+            // que le GRU sort sur un buffer "vide" (main posée).
             const sConf = data.sign_confidence ?? 0;
-            if (data.sign && sConf >= MIN_SIGN_CONFIDENCE) {
-                if (sConf >= pendingSignConf) {
-                    pendingSign = data.sign;
-                    pendingSignConf = sConf;
+            if (handAboveNow) {
+                if (data.sign && sConf >= MIN_SIGN_CONFIDENCE) {
+                    if (sConf >= pendingSignConf) {
+                        pendingSign = data.sign;
+                        pendingSignConf = sConf;
+                    }
                 }
+                // Affichage live tant qu'on signe : on montre la tentative
+                // courante du GRU (sera commit au moment de la descente).
+                if (currentLetterEl) currentLetterEl.textContent = data.sign ?? '-';
+            } else {
+                // Main sous le seuil : on tient le display à '-' (idle).
+                if (currentLetterEl) currentLetterEl.textContent = '-';
             }
-            // Affichage live : on montre la prédiction "tentative" en cours,
-            // mais elle n'est ajoutée au mot qu'à la descente sous le seuil.
-            if (currentLetterEl) currentLetterEl.textContent = data.sign ?? '-';
         }
     }
 

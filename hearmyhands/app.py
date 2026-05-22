@@ -44,7 +44,12 @@ REQUEST_TIMEOUT = float(os.environ.get("MODEL_TIMEOUT", "5"))
 SIGN_TIMEOUT    = float(os.environ.get("SIGN_TIMEOUT",  "2"))
 MAX_FRAME_BYTES = 2 * 1024 * 1024
 SEQ_LEN         = 45          # doit matcher SignClassifier.SEQ_LEN
-SIGN_EVERY_N    = 5
+# Un GRU inférence tous les SIGN_EVERY_N frames quand le client demande
+# explicitement (predict_sign=True). On peut se permettre un poll plus
+# espacé que la version d'origine (5) parce que le client est gating ON/OFF
+# et qu'on a une prédiction utile au moment du commit (descente sous seuil),
+# pas besoin d'en avoir une à chaque frame.
+SIGN_EVERY_N    = 10
 
 # Espace pixel canonique sur lequel le GRU Ocarina a été entraîné
 # (mod_json.py force la webcam en 640x480 lors de la capture du dataset)
@@ -431,8 +436,18 @@ def _on_disconnect():
 
 
 @socketio.on("frame")
-def handle_frame(image_bytes):
-    """Decode + predict + ack."""
+def handle_frame(image_bytes, flags=None):
+    """Decode + predict + ack.
+
+    flags : dict optionnel, transmis par le client. Champs reconnus :
+      - predict_sign (bool, default True) :
+            False  -> on remplit toujours le buffer GRU (zéro coût) mais on
+                      n'appelle PAS l'inférence GRU. Utile quand le client
+                      est en mode statique, ou en mode dynamique sous le
+                      seuil (où la prédiction est inutile).
+            True   -> comportement classique : un appel GRU tous les
+                      SIGN_EVERY_N frames si le buffer est plein.
+    """
     if not image_bytes:
         return _EMPTY
     data = _run_frame(image_bytes)
@@ -443,7 +458,10 @@ def handle_frame(image_bytes):
     img_w  = data.get("image_width", 0) or 0
     img_h  = data.get("image_height", 0) or 0
 
-    sign, sign_conf = _maybe_predict_sign(request.sid, hands, img_w, img_h)
+    if flags is None or not isinstance(flags, dict):
+        flags = {}
+    want_sign = bool(flags.get("predict_sign", True))
+    sign, sign_conf = _maybe_predict_sign(request.sid, hands, img_w, img_h, want_sign)
 
     return {
         "skeleton":        data.get("keypoints"),
@@ -455,16 +473,23 @@ def handle_frame(image_bytes):
     }
 
 
-def _maybe_predict_sign(sid, hands, img_w, img_h):
+def _maybe_predict_sign(sid, hands, img_w, img_h, want_sign=True):
+    """Maintient toujours le buffer ; n'appelle le GRU que si want_sign."""
     if _sign_api_disabled:
         return None, None
     with _sessions_lock:
         state = _sessions.get(sid)
         if state is None:
             return None, None
+        # On continue de remplir le buffer même si on ne va pas inférer,
+        # pour que dès que le client repasse en predict_sign=True on ait
+        # un buffer plein prêt à l'emploi (sinon il faudrait 1.5s pour
+        # le remplir à 30 fps).
         if hands and img_w and img_h:
             state["buf"].append(_normalize_hand(hands[0], img_w, img_h))
         state["tick"] += 1
+        if not want_sign:
+            return None, None
         ready = len(state["buf"]) == SEQ_LEN and state["tick"] % SIGN_EVERY_N == 0
         if not ready:
             return None, None

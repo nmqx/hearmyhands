@@ -286,7 +286,9 @@ function sendFrame() {
     encodeCanvas.toBlob(async (blob) => {
         if (!blob) { clearTimeout(release); inFlight = Math.max(0, inFlight - 1); return; }
         const buf = await blob.arrayBuffer();
-        socket.emit('frame', buf, (resp) => {
+        // En mode apprentissage on n'a besoin que du MLP (lettre par frame).
+        // predict_sign=false économise le GRU côté serveur.
+        socket.emit('frame', buf, { predict_sign: false }, (resp) => {
             clearTimeout(release);
             inFlight = Math.max(0, inFlight - 1);
             if (seq <= lastAppliedSeq) return;
