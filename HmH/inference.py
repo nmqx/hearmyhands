@@ -43,7 +43,12 @@ POIDS_DIR      = os.path.join(SCRIPT_DIR, "Poids")
 LETTER_TRAIN_W, LETTER_TRAIN_H = 640, 480
 
 OCARINA_DIR     = os.path.join(SCRIPT_DIR, "..", "Modèle_Ocarina")
-OCARINA_WEIGHTS = os.environ.get("OCARINA_WEIGHTS", os.path.join(OCARINA_DIR, "ocarina_gru_v1.pth"))
+# V2 par défaut (depuis mai 2026). On peut forcer V1 via la variable
+# d'env pour comparer / rollback. Note : v1.pth a une archi incompatible
+# (hidden=64, 1 layer, unidirectional) et ne se chargera pas dans le
+# nouveau SignClassifier — c'est un vrai rollback nécessitant aussi de
+# rétablir l'ancienne classe _OcarinaGRU.
+OCARINA_WEIGHTS = os.environ.get("OCARINA_WEIGHTS", os.path.join(OCARINA_DIR, "ocarina_gru_v2.pth"))
 OCARINA_CLASSES = os.environ.get("OCARINA_CLASSES", os.path.join(OCARINA_DIR, "ocarina_classes.json"))
 
 _MEAN_BGR = np.array([0.406, 0.456, 0.485], dtype=np.float32)
@@ -124,13 +129,14 @@ class InferenceEngine:
         kp_orig[:, 0] = kp_orig[:, 0] * side - pad_left
         kp_orig[:, 1] = kp_orig[:, 1] * side - pad_top
 
-        hands_data = hands_future.result()
+        hands_data, handedness = hands_future.result()
         letter, confidence = self._predict_letter(hands_data, frame_bgr)
         img_h, img_w = frame_bgr.shape[:2]
 
         return {
             "keypoints":    kp_orig.tolist(),
             "hands":        hands_data,
+            "handedness":   handedness,   # ["Right", "Left"] aligné sur hands
             "letter":       letter,
             "confidence":   confidence,
             "image_width":  int(img_w),
@@ -167,16 +173,41 @@ class InferenceEngine:
         tensor = (tensor - self._mean_t) / self._std_t
         return tensor, side, pad_left, pad_top
 
-    def _detect_hands(self, frame_bgr: np.ndarray) -> list[list[list[float]]]:
+    def _detect_hands(self, frame_bgr: np.ndarray):
+        """Retourne (landmarks_pixel, handedness_list).
+
+        - landmarks_pixel : liste de mains, chaque main = liste de 21 [x, y]
+                            en coordonnées pixel de l'image runtime.
+        - handedness_list : liste alignée index-par-index, valeurs "Right"
+                            ou "Left" (str). Utilisée par le pipeline GRU
+                            V2 pour mirrorer la main si nécessaire.
+        """
         if self.hands_detector is None:
-            return []
+            return [], []
         rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         results = self.hands_detector.detect(mp_image)
         if not results.hand_landmarks:
-            return []
+            return [], []
         h, w, _ = frame_bgr.shape
-        return [[[lm.x * w, lm.y * h] for lm in hand] for hand in results.hand_landmarks]
+        landmarks = [
+            [[lm.x * w, lm.y * h] for lm in hand]
+            for hand in results.hand_landmarks
+        ]
+        handedness = []
+        # results.handedness est une liste alignée sur hand_landmarks
+        # (Tasks API). Chaque entrée est une liste de catégories ; on
+        # prend celle de plus haut score.
+        raw_h = getattr(results, "handedness", None) or []
+        for entry in raw_h:
+            try:
+                handedness.append(entry[0].category_name)  # "Left" or "Right"
+            except Exception:
+                handedness.append("Right")
+        # Padding au cas où (sécurité)
+        while len(handedness) < len(landmarks):
+            handedness.append("Right")
+        return landmarks, handedness
 
     def _predict_letter(self, hands_data, frame_bgr):
         if not hands_data or self.letter_classifier is None or frame_bgr is None:
