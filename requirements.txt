@@ -3,6 +3,7 @@ flask>=3.0
 flask-socketio>=5.3
 requests>=2.31
 psutil>=5.9        # /monitor dashboard
+qrcode[pil]>=7.4   # /qr page
 
 # Model API
 torch>=2.0

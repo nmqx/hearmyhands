@@ -150,6 +150,46 @@ def home():
     return render_template("home.html")
 
 
+# ── QR code vers le site (page de démo) ─────────────────────────────────────
+# Généré une seule fois au démarrage, gardé en mémoire comme PNG base64.
+# URL cible configurable via env, défaut = https://hearmyhands.asia
+QR_TARGET_URL = os.environ.get("QR_TARGET_URL", "https://hearmyhands.asia")
+_QR_PNG_B64 = None  # populated lazily on first /qr hit
+
+
+def _build_qr_png_b64():
+    """Génère le PNG du QR code et le retourne en base64. Lazy — ne tente
+    l'import qu'à la première demande pour ne pas casser le boot si
+    qrcode n'est pas installé."""
+    import base64, io
+    try:
+        import qrcode
+    except ImportError:
+        return None
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=12, border=2,
+    )
+    qr.add_data(QR_TARGET_URL)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#1a1c23", back_color="#ffffff")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+@app.route("/qr")
+def qr_page():
+    global _QR_PNG_B64
+    if _QR_PNG_B64 is None:
+        _QR_PNG_B64 = _build_qr_png_b64()
+    if _QR_PNG_B64 is None:
+        return ("Erreur : la lib 'qrcode' n'est pas installée sur le serveur. "
+                "Installe via `pip install qrcode[pil]`."), 503
+    return render_template("qr.html", qr_png=_QR_PNG_B64, target=QR_TARGET_URL)
+
+
 @app.route("/translate")
 def translate():
     return render_template("translate.html")
