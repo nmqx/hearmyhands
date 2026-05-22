@@ -132,6 +132,7 @@ function initTranslate() {
     let lastSeenAboveTs   = 0;       // dernier tick où on a vu une main au-dessus
     let pendingSign       = null;    // dernier sign GRU valide reçu, en attente
     let pendingSignConf   = 0;       // sa confidence (pour gagner les ex-aequo)
+    let resetSignBufferOnNextFrame = false; // reset serveur au début d'un nouveau geste
     // MediaPipe Hands client-side : on l'utilise UNIQUEMENT pour suivre la
     // position des landmarks sans dépendre des réponses serveur (utile aussi
     // si jamais la latence réseau augmente). Le squelette dessiné à l'écran
@@ -351,7 +352,13 @@ function initTranslate() {
             // - Mode dynamique -> seulement quand la main est au-dessus du
             //                     seuil (inutile de mouliner le GRU pendant
             //                     les moments idle).
-            const flags = { predict_sign: (mode === 'dynamic' && handAboveNow) };
+            const signActive = (mode === 'dynamic' && handAboveNow);
+            const flags = {
+                predict_sign: signActive,
+                update_sign_buffer: signActive,
+                reset_sign_buffer: resetSignBufferOnNextFrame,
+            };
+            resetSignBufferOnNextFrame = false;
             socket.emit('frame', buf, flags, (response) => {
                 clearTimeout(releaseTimer);
                 inFlightCount = Math.max(0, inFlightCount - 1);
@@ -573,6 +580,7 @@ function initTranslate() {
                 handAboveNow = false;
                 pendingSign = null;
                 pendingSignConf = 0;
+                resetSignBufferOnNextFrame = true;
             }
             requestAnimationFrame(trackLoop);
             return;
@@ -598,6 +606,14 @@ function initTranslate() {
         }
         // Tolérance ABSENCE_GRACE_MS avant de considérer le geste fini.
         const stillAbove = above || (now - lastSeenAboveTs) < ABSENCE_GRACE_MS;
+
+        // Nouveau geste : on demande au serveur d'oublier la séquence GRU
+        // précédente avant d'empiler les frames du signe courant.
+        if (!handAboveNow && stillAbove) {
+            resetSignBufferOnNextFrame = true;
+            pendingSign = null;
+            pendingSignConf = 0;
+        }
 
         // Transition au-dessus → en-dessous (debouncée) = geste terminé.
         // C'est le moment où on commit la dernière prédiction GRU reçue.

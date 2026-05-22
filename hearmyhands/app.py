@@ -653,12 +653,17 @@ def handle_frame(image_bytes, flags=None):
 
     flags : dict optionnel, transmis par le client. Champs reconnus :
       - predict_sign (bool, default True) :
-            False  -> on remplit toujours le buffer GRU (zéro coût) mais on
-                      n'appelle PAS l'inférence GRU. Utile quand le client
-                      est en mode statique, ou en mode dynamique sous le
-                      seuil (où la prédiction est inutile).
+            False  -> on peut mettre à jour le buffer sans appeler
+                      l'inférence GRU, selon update_sign_buffer.
             True   -> comportement classique : un appel GRU tous les
                       SIGN_EVERY_N frames si le buffer est plein.
+      - update_sign_buffer (bool, default True) :
+            False  -> on ne pousse rien dans le buffer GRU. Utilisé en mode
+                      dynamique quand la main est sous le seuil, pour éviter
+                      de polluer le prochain signe avec des frames idle.
+      - reset_sign_buffer (bool, default False) :
+            True   -> vide le buffer GRU de la session avant de traiter la
+                      frame courante. Utilisé au début d'un nouveau geste.
     """
     if not image_bytes:
         return _EMPTY
@@ -691,8 +696,13 @@ def handle_frame(image_bytes, flags=None):
     if flags is None or not isinstance(flags, dict):
         flags = {}
     want_sign = bool(flags.get("predict_sign", True))
+    update_sign_buffer = bool(flags.get("update_sign_buffer", True))
+    reset_sign_buffer = bool(flags.get("reset_sign_buffer", False))
     sign, sign_conf = _maybe_predict_sign(
-        request.sid, hands, handedness, img_w, img_h, want_sign,
+        request.sid, hands, handedness, img_w, img_h,
+        want_sign=want_sign,
+        update_buffer=update_sign_buffer,
+        reset_buffer=reset_sign_buffer,
     )
 
     # ── Hall of fame : capture une seule fois par session ──
@@ -744,15 +754,19 @@ def handle_frame(image_bytes, flags=None):
     }
 
 
-def _maybe_predict_sign(sid, hands, handedness, img_w, img_h, want_sign=True):
-    """Maintient toujours le buffer + mask, appelle le GRU si want_sign.
+def _maybe_predict_sign(
+    sid, hands, handedness, img_w, img_h,
+    want_sign=True, update_buffer=True, reset_buffer=False,
+):
+    """Met à jour le buffer + mask si demandé, appelle le GRU si want_sign.
 
     Sémantique du buffer (alignée sur Modèle_Ocarina/demo.py) :
-    - À CHAQUE frame on push une entrée. Si une main est détectée, le
-      vecteur normalisé V2 et mask=1. Sinon, vecteur nul et mask=0.
-    - La timeline n'est donc jamais compressée : un trou (main hors champ)
-      est reflété tel quel dans la séquence, et le mask permet au GRU
-      d'ignorer les paddings via masked mean-pool.
+    - Quand update_buffer=True, on push une entrée. Si une main est détectée,
+      le vecteur normalisé V2 et mask=1. Sinon, vecteur nul et mask=0.
+    - En mode dynamique, le client passe update_buffer=False sous le seuil :
+      le buffer garde uniquement les frames du geste actif.
+    - Au début d'un nouveau geste, reset_buffer=True vide la séquence
+      précédente pour éviter de prédire avec l'ancien signe.
 
     handedness : liste alignée sur hands, valeurs "Right" / "Left".
     """
@@ -763,7 +777,15 @@ def _maybe_predict_sign(sid, hands, handedness, img_w, img_h, want_sign=True):
         if state is None:
             return None, None
 
-        # 1) Push systématique au buffer et au mask
+        if reset_buffer:
+            state["buf"].clear()
+            state["mask"].clear()
+            state["tick"] = 0
+
+        if not update_buffer:
+            return None, None
+
+        # 1) Push au buffer et au mask uniquement pendant un geste actif
         if hands and img_w and img_h:
             hand0 = hands[0]
             side = handedness[0] if handedness else "Right"
