@@ -1232,36 +1232,38 @@ video.active { opacity: 1; }
     min-height: calc(100vh - 200px);
 }
 .qr-card {
-    max-width: 480px;
+    max-width: 760px;
     width: 100%;
     text-align: center;
-    padding: 36px 28px;
-    gap: 18px;
+    padding: 44px 32px;
+    gap: 22px;
     align-items: center;
 }
 .qr-title {
     font-family: 'Montserrat', sans-serif;
     font-weight: 800;
     margin: 0;
-    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
 }
 .qr-subtitle {
     margin: 0;
     color: var(--primary);
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.3rem;
 }
 .qr-image-wrap {
     background: white;
-    padding: 14px;
-    border-radius: 18px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    padding: 20px;
+    border-radius: 24px;
+    box-shadow: 0 10px 32px rgba(0,0,0,0.22);
     line-height: 0;
 }
 .qr-image {
     display: block;
-    width: 280px;
-    height: 280px;
+    /* Aussi gros que possible tout en restant cadré sur un écran moyen.
+       Plafond à 70 vmin pour ne pas dépasser la viewport sur petit écran. */
+    width: min(560px, 70vmin);
+    height: min(560px, 70vmin);
     image-rendering: pixelated;  /* nettes arêtes même downscaled */
 }
 .qr-url {

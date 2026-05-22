@@ -83,6 +83,30 @@ _last_frames: dict[str, tuple[float, bytes]] = {}
 _last_frames_lock = Lock()
 _LAST_FRAME_MAX_AGE_S = 10.0      # une session inactive disparaît au bout de 10s
 
+# IP du client par sid, alimentée au connect Socket.IO. Affichée dans
+# /webcam à la place du SID hash pour identifier visuellement qui est qui
+# en démo (utile pour aller dire « ouais c'est ton flux, est-ce que ça
+# marche pour toi ? »).
+_session_ips: dict[str, str] = {}
+_session_ips_lock = Lock()
+
+
+def _client_ip():
+    """Vraie IP du client derrière nginx + Cloudflare.
+
+    Ordre de préférence :
+      1. CF-Connecting-IP (Cloudflare donne l'IP d'origine ici)
+      2. X-Forwarded-For (premier maillon = client)
+      3. request.remote_addr (fallback, sera l'IP locale si derrière proxy)
+    """
+    ip = request.headers.get("CF-Connecting-IP")
+    if ip:
+        return ip
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
 # ── Inference backend ────────────────────────────────────────────────────────
 # Default: in-process. Single shared engine, loaded once.
 _engine = None
@@ -169,7 +193,10 @@ def _build_qr_png_b64():
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=12, border=2,
+        # box_size = taille d'un module en pixels dans le PNG. 24 -> ~720 px de
+        # côté pour une URL courte, largement assez pour un zoom plein écran
+        # sur projecteur de démo.
+        box_size=24, border=2,
     )
     qr.add_data(QR_TARGET_URL)
     qr.make(fit=True)
@@ -498,14 +525,20 @@ def api_debug_sessions():
                  if now - ts > _LAST_FRAME_MAX_AGE_S]
         for sid in stale:
             _last_frames.pop(sid, None)
-        for sid, (ts, jpeg) in _last_frames.items():
-            age = now - ts
-            out.append({
-                "sid":    sid[:8],                        # tronqué (privacy minimal)
-                "age_ms": int(age * 1000),
-                "size_b": len(jpeg),
-                "image":  "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(),
-            })
+        items = list(_last_frames.items())
+    # On consulte les IPs hors du verrou frames pour ne pas créer de
+    # contention entre les deux dicts.
+    with _session_ips_lock:
+        ips = {sid: _session_ips.get(sid, "?") for sid, _ in items}
+    for sid, (ts, jpeg) in items:
+        age = now - ts
+        out.append({
+            "sid":    sid[:8],                        # gardé pour debug avancé
+            "ip":     ips.get(sid, "?"),
+            "age_ms": int(age * 1000),
+            "size_b": len(jpeg),
+            "image":  "data:image/jpeg;base64," + base64.b64encode(jpeg).decode(),
+        })
     # Trie par âge croissant (les plus actifs en premier)
     out.sort(key=lambda s: s["age_ms"])
     return {"sessions": out, "count": len(out), "server_ts": now}
@@ -551,6 +584,9 @@ def _on_connect():
             "mask": deque(maxlen=SEQ_LEN),
             "tick": 0,
         }
+    # Mémorise l'IP pour la vue debug
+    with _session_ips_lock:
+        _session_ips[request.sid] = _client_ip()
 
 
 @socketio.on("disconnect")
@@ -559,6 +595,8 @@ def _on_disconnect():
         _sessions.pop(request.sid, None)
     with _last_frames_lock:
         _last_frames.pop(request.sid, None)
+    with _session_ips_lock:
+        _session_ips.pop(request.sid, None)
 
 
 @socketio.on("ping_test")

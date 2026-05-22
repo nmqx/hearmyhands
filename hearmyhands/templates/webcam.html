@@ -65,16 +65,17 @@
         card.className = 'webcam-cell';
         card.innerHTML = `
             <div class="webcam-cell-head">
-                <span class="webcam-sid">${sid}</span>
+                <span class="webcam-sid" data-sid></span>
                 <span class="webcam-meta" data-meta></span>
             </div>
-            <img alt="webcam ${sid}" data-img>
+            <img alt="webcam" data-img>
         `;
         grid.appendChild(card);
         cells.set(sid, {
             card,
             img:  card.querySelector('[data-img]'),
             meta: card.querySelector('[data-meta]'),
+            sidEl: card.querySelector('[data-sid]'),
         });
         return cells.get(sid);
     }
@@ -94,6 +95,14 @@
                 seen.add(s.sid);
                 const cell = cells.get(s.sid) || makeCell(s.sid);
                 cell.img.src = s.image;
+                // Affiche l'IP (vraie identité). Si on a pas d'IP (proxy
+                // mal configuré, fallback "?"), on retombe sur le SID
+                // tronqué pour ne pas perdre l'identification visuelle.
+                const label = (s.ip && s.ip !== '?' && s.ip !== 'unknown')
+                    ? s.ip
+                    : `sid:${s.sid}`;
+                cell.sidEl.textContent = label;
+                cell.sidEl.title = `sid=${s.sid}  ip=${s.ip}`;
                 cell.meta.textContent = `${s.age_ms}ms · ${(s.size_b/1024).toFixed(1)}KB`;
                 // Highlight stale (>2s)
                 cell.card.classList.toggle('stale', s.age_ms > 2000);
