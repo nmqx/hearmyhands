@@ -405,17 +405,44 @@ def monitor():
     return render_template("monitor.html")
 
 
+# ── Auth basique pour les routes debug ──────────────────────────────────────
+# Le mot de passe vit en variable d'env WEBCAM_DEBUG_PASS, défaut "admin".
+# On protège ET la page HTML ET l'API JSON — sinon n'importe qui pourrait
+# tout simplement hitter /api/debug/sessions et obtenir les frames.
+from functools import wraps
+from flask import Response
+
+WEBCAM_DEBUG_PASS = os.environ.get("WEBCAM_DEBUG_PASS", "admin")
+
+
+def _require_webcam_auth(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        auth = request.authorization
+        # On accepte n'importe quel username, seul le password compte.
+        if not auth or auth.password != WEBCAM_DEBUG_PASS:
+            return Response(
+                "Accès debug protégé.", 401,
+                {"WWW-Authenticate": 'Basic realm="HearMyHands debug"'},
+            )
+        return view(*args, **kwargs)
+    return wrapper
+
+
 @app.route("/webcam")
+@_require_webcam_auth
 def webcam_debug():
     """Vue debug : affiche en grille les webcams des sessions actives.
 
     À utiliser uniquement en démo / debug — c'est une vue privée des
     flux webcam de toutes les personnes connectées au même moment.
+    Protégé par Basic Auth (password = $WEBCAM_DEBUG_PASS, défaut 'admin').
     """
     return render_template("webcam.html")
 
 
 @app.route("/api/debug/sessions")
+@_require_webcam_auth
 def api_debug_sessions():
     """Liste des sessions Socket.IO actives + leur dernière frame.
 
