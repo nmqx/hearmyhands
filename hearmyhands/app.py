@@ -44,12 +44,13 @@ REQUEST_TIMEOUT = float(os.environ.get("MODEL_TIMEOUT", "5"))
 SIGN_TIMEOUT    = float(os.environ.get("SIGN_TIMEOUT",  "2"))
 MAX_FRAME_BYTES = 2 * 1024 * 1024
 SEQ_LEN         = 45          # doit matcher SignClassifier.SEQ_LEN
-# Un GRU inférence tous les SIGN_EVERY_N frames quand le client demande
-# explicitement (predict_sign=True). On peut se permettre un poll plus
-# espacé que la version d'origine (5) parce que le client est gating ON/OFF
-# et qu'on a une prédiction utile au moment du commit (descente sous seuil),
-# pas besoin d'en avoir une à chaque frame.
-SIGN_EVERY_N    = 10
+# Un appel GRU tous les SIGN_EVERY_N frames quand le client demande
+# explicitement (predict_sign=True). Aligné avec PRED_EVERY_N_FRAMES=3 de
+# demo.py pour avoir une UX réactive (~10 Hz à 30 fps de webcam).
+SIGN_EVERY_N    = 3
+# Nombre minimum de frames AVEC main détectée avant de tenter une prédiction.
+# Sinon le GRU tournerait sur un buffer quasi-vide -> bruit pur.
+MIN_REAL_FRAMES = 5
 
 # Espace pixel canonique sur lequel le GRU Ocarina a été entraîné
 # (mod_json.py force la webcam en 640x480 lors de la capture du dataset)
@@ -109,7 +110,7 @@ def _run_frame(image_bytes: bytes):
     return resp.json()
 
 
-def _run_sign(sequence):
+def _run_sign(sequence, mask=None):
     global _sign_api_disabled
     if _sign_api_disabled:
         return None
@@ -118,9 +119,12 @@ def _run_sign(sequence):
             _sign_api_disabled = True
             _log.info("Sign classifier not loaded — disabling sign predictions")
             return None
-        return _engine.predict_sign(sequence)
+        return _engine.predict_sign(sequence, mask)
     try:
-        r = _http.post(SIGN_API_URL, json={"sequence": sequence}, timeout=SIGN_TIMEOUT)
+        payload = {"sequence": sequence}
+        if mask is not None:
+            payload["mask"] = mask
+        r = _http.post(SIGN_API_URL, json=payload, timeout=SIGN_TIMEOUT)
     except Exception as exc:
         _log.warning("sign API unreachable: %s", exc)
         return None
@@ -426,7 +430,14 @@ def stats():
 @socketio.on("connect")
 def _on_connect():
     with _sessions_lock:
-        _sessions[request.sid] = {"buf": deque(maxlen=SEQ_LEN), "tick": 0}
+        # buf  : deque de 42-vecteurs, padding à zéro si pas de main détectée
+        # mask : deque alignée, 1.0 si frame avec main, 0.0 sinon
+        # tick : compteur de frames pour le throttling SIGN_EVERY_N
+        _sessions[request.sid] = {
+            "buf":  deque(maxlen=SEQ_LEN),
+            "mask": deque(maxlen=SEQ_LEN),
+            "tick": 0,
+        }
 
 
 @socketio.on("disconnect")
@@ -477,11 +488,16 @@ def handle_frame(image_bytes, flags=None):
 
 
 def _maybe_predict_sign(sid, hands, handedness, img_w, img_h, want_sign=True):
-    """Maintient toujours le buffer ; n'appelle le GRU que si want_sign.
+    """Maintient toujours le buffer + mask, appelle le GRU si want_sign.
+
+    Sémantique du buffer (alignée sur Modèle_Ocarina/demo.py) :
+    - À CHAQUE frame on push une entrée. Si une main est détectée, le
+      vecteur normalisé V2 et mask=1. Sinon, vecteur nul et mask=0.
+    - La timeline n'est donc jamais compressée : un trou (main hors champ)
+      est reflété tel quel dans la séquence, et le mask permet au GRU
+      d'ignorer les paddings via masked mean-pool.
 
     handedness : liste alignée sur hands, valeurs "Right" / "Left".
-                 Utilisée par _normalize_hand pour mirrorer si la main
-                 détectée n'est pas du côté canonique (Right en V2).
     """
     if _sign_api_disabled:
         return None, None
@@ -489,23 +505,38 @@ def _maybe_predict_sign(sid, hands, handedness, img_w, img_h, want_sign=True):
         state = _sessions.get(sid)
         if state is None:
             return None, None
-        # On continue de remplir le buffer même si on ne va pas inférer,
-        # pour que dès que le client repasse en predict_sign=True on ait
-        # un buffer plein prêt à l'emploi (sinon il faudrait 1.5s pour
-        # le remplir à 30 fps).
+
+        # 1) Push systématique au buffer et au mask
         if hands and img_w and img_h:
             hand0 = hands[0]
             side = handedness[0] if handedness else "Right"
             state["buf"].append(_normalize_hand(hand0, img_w, img_h, side))
+            state["mask"].append(1.0)
+        else:
+            state["buf"].append([0.0] * 42)
+            state["mask"].append(0.0)
         state["tick"] += 1
+
         if not want_sign:
             return None, None
-        ready = len(state["buf"]) == SEQ_LEN and state["tick"] % SIGN_EVERY_N == 0
-        if not ready:
-            return None, None
-        sequence = list(state["buf"])
 
-    result = _run_sign(sequence)
+        # 2) Conditions pour tenter l'inférence
+        if state["tick"] % SIGN_EVERY_N != 0:
+            return None, None
+        real_count = sum(state["mask"])
+        if real_count < MIN_REAL_FRAMES:
+            return None, None
+
+        # 3) Snapshot. Si on n'a pas encore SEQ_LEN entrées, on pad à gauche
+        #    avec des zéros (et le mask à 0) pour matcher la shape attendue.
+        sequence = list(state["buf"])
+        mask     = list(state["mask"])
+        if len(sequence) < SEQ_LEN:
+            pad = SEQ_LEN - len(sequence)
+            sequence = [[0.0] * 42] * pad + sequence
+            mask     = [0.0] * pad + mask
+
+    result = _run_sign(sequence, mask)
     if result is None:
         return None, None
     return result.get("sign"), result.get("confidence")

@@ -143,13 +143,18 @@ class InferenceEngine:
             "image_height": int(img_h),
         }
 
-    def predict_sign(self, sequence) -> dict | None:
-        """Run the Ocarina GRU on a 60-frame sequence of 42 normalized floats."""
+    def predict_sign(self, sequence, mask=None) -> dict | None:
+        """Run the Ocarina GRU V2 on a 45-frame sequence + mask.
+
+        mask : list of 45 floats (1.0 = real frame, 0.0 = padding/no hand).
+               Si None, le SignClassifier construit un mask all-ones (cas
+               legacy avec buffer rempli seulement de frames réelles).
+        """
         if self.sign_classifier is None:
             return None
         if not isinstance(sequence, list):
             return None
-        result = self.sign_classifier.predict(sequence)
+        result = self.sign_classifier.predict(sequence, mask)
         if result is None:
             return None
         sign, conf = result
