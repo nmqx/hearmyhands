@@ -51,14 +51,6 @@ SIGN_EVERY_N    = 3
 # Nombre minimum de frames AVEC main détectée avant de tenter une prédiction.
 # Sinon le GRU tournerait sur un buffer quasi-vide -> bruit pur.
 MIN_REAL_FRAMES = 5
-# Seuil de confidence GRU pour qu'une prédiction compte pour le hall of fame.
-# Plus exigeant que le seuil client (0.7) pour ne pas capturer du bruit.
-MIN_HALL_SIGN_CONF = 0.75
-# Délai après connect pour la capture time-based du hall of fame. Permet
-# de fonctionner aussi en mode statique (où aucune prédiction GRU ne
-# tourne) : on attend juste 3s que la webcam soit bien stable et on
-# prend une photo.
-HALL_DELAY_S = 3.0
 
 # Espace pixel canonique sur lequel le GRU Ocarina a été entraîné
 # (mod_json.py force la webcam en 640x480 lors de la capture du dataset)
@@ -84,36 +76,6 @@ _EMPTY = {
 _sessions: dict[str, dict] = {}
 _sessions_lock = Lock()
 
-# Cache de la dernière frame brute reçue par session, pour la vue debug
-# /webcam. On garde uniquement les octets JPEG, qui suffisent au rendu :
-# pas de décodage côté serveur, juste un passe-plat avec base64.
-_last_frames: dict[str, tuple[float, bytes]] = {}
-_last_frames_lock = Lock()
-_LAST_FRAME_MAX_AGE_S = 10.0      # une session inactive disparaît au bout de 10s
-
-# IP du client par sid, alimentée au connect Socket.IO. Affichée dans
-# /webcam à la place du SID hash pour identifier visuellement qui est qui
-# en démo (utile pour aller dire « ouais c'est ton flux, est-ce que ça
-# marche pour toi ? »).
-_session_ips: dict[str, str] = {}
-_session_ips_lock = Lock()
-
-
-def _client_ip():
-    """Vraie IP du client derrière nginx + Cloudflare.
-
-    Ordre de préférence :
-      1. CF-Connecting-IP (Cloudflare donne l'IP d'origine ici)
-      2. X-Forwarded-For (premier maillon = client)
-      3. request.remote_addr (fallback, sera l'IP locale si derrière proxy)
-    """
-    ip = request.headers.get("CF-Connecting-IP")
-    if ip:
-        return ip
-    xff = request.headers.get("X-Forwarded-For", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.remote_addr or "unknown"
 
 # ── Inference backend ────────────────────────────────────────────────────────
 # Default: in-process. Single shared engine, loaded once.
@@ -480,102 +442,6 @@ def monitor():
     return render_template("monitor.html")
 
 
-# ── Auth basique pour les routes debug ──────────────────────────────────────
-# Le mot de passe vit en variable d'env WEBCAM_DEBUG_PASS, défaut "admin".
-# On protège ET la page HTML ET l'API JSON — sinon n'importe qui pourrait
-# tout simplement hitter /api/debug/sessions et obtenir les frames.
-from functools import wraps
-from flask import Response
-
-WEBCAM_DEBUG_PASS = os.environ.get("WEBCAM_DEBUG_PASS", "admin")
-
-
-def _require_webcam_auth(view):
-    @wraps(view)
-    def wrapper(*args, **kwargs):
-        auth = request.authorization
-        # On accepte n'importe quel username, seul le password compte.
-        if not auth or auth.password != WEBCAM_DEBUG_PASS:
-            return Response(
-                "Accès debug protégé.", 401,
-                {"WWW-Authenticate": 'Basic realm="HearMyHands debug"'},
-            )
-        return view(*args, **kwargs)
-    return wrapper
-
-
-# ── Hall of fame /image ─────────────────────────────────────────────────────
-# Une capture par IP, prise quand l'utilisateur fait son 2e signe détecté
-# de la session. Si la même IP revient plus tard, la nouvelle capture
-# remplace l'ancienne (overwrite simple sur disque). Stocké côté serveur
-# uniquement (pas en git), gitignored.
-HALL_DIR = os.path.join(_HERE, "static", "hall_of_fame")
-os.makedirs(HALL_DIR, exist_ok=True)
-
-
-def _safe_ip_filename(ip: str) -> str:
-    """Sanitize une IP en nom de fichier (IPv4 / IPv6) — uniquement chiffres,
-    points et tirets, max 50 chars. Évite les surprises de path traversal."""
-    cleaned = re.sub(r"[^0-9a-fA-F.:\-]", "", ip or "")
-    cleaned = cleaned.replace(":", "_")  # IPv6 friendly file name
-    return (cleaned or "unknown")[:50]
-
-
-def _save_hall_frame(ip: str, jpeg: bytes) -> None:
-    """Écrit la frame JPEG sur disque pour cette IP (overwrite)."""
-    try:
-        path = os.path.join(HALL_DIR, _safe_ip_filename(ip) + ".jpg")
-        with open(path, "wb") as f:
-            f.write(jpeg)
-    except OSError as exc:
-        _log.warning("hall_of_fame write failed for %s: %s", ip, exc)
-
-
-@app.route("/image")
-@_require_webcam_auth
-def image_hall():
-    """Hall of fame : capture de chaque IP qui s'est connectée et a signé
-    au moins 2 fois. Protégé par Basic Auth (password = WEBCAM_DEBUG_PASS).
-    """
-    return render_template("image.html")
-
-
-@app.route("/api/debug/hall")
-@_require_webcam_auth
-def api_debug_hall():
-    """Liste les fichiers du hall_of_fame avec leur mtime.
-
-    Polling JSON depuis /image. Les images elles-mêmes sont servies par
-    le static handler de Flask (`/static/hall_of_fame/<filename>`) ; on
-    n'inline pas le base64 ici pour pouvoir cacher individuellement et
-    éviter de cracher 10 MB de JSON dans la nature.
-    """
-    out = []
-    try:
-        for name in sorted(os.listdir(HALL_DIR)):
-            if not name.endswith(".jpg"):
-                continue
-            full = os.path.join(HALL_DIR, name)
-            try:
-                st = os.stat(full)
-            except OSError:
-                continue
-            # On reconstruit l'IP d'affichage depuis le nom de fichier
-            # (replace _ -> : pour l'IPv6).
-            ip = name[:-4].replace("_", ":")
-            out.append({
-                "ip":    ip,
-                "url":   f"/static/hall_of_fame/{name}?v={int(st.st_mtime)}",
-                "mtime": int(st.st_mtime),
-                "size":  st.st_size,
-            })
-    except OSError as exc:
-        _log.warning("hall_of_fame read failed: %s", exc)
-    # Plus récents en premier
-    out.sort(key=lambda e: -e["mtime"])
-    return {"entries": out, "count": len(out), "server_ts": time.time()}
-
-
 @app.route("/stats")
 def stats():
     if not _PSUTIL:
@@ -611,31 +477,17 @@ def _on_connect():
         # buf  : deque de 42-vecteurs, padding à zéro si pas de main détectée
         # mask : deque alignée, 1.0 si frame avec main, 0.0 sinon
         # tick : compteur de frames pour le throttling SIGN_EVERY_N
-        # last_sign / sign_count / hall_saved : trackés pour le hall of fame
-        #   on capture après HALL_DELAY_S secondes (peu importe le mode)
-        #   OU au 2e sign détecté en dynamique (whichever fires first).
         _sessions[request.sid] = {
             "buf":  deque(maxlen=SEQ_LEN),
             "mask": deque(maxlen=SEQ_LEN),
             "tick": 0,
-            "connect_ts": time.time(),
-            "last_sign":  None,
-            "sign_count": 0,
-            "hall_saved": False,
         }
-    # Mémorise l'IP pour la vue debug
-    with _session_ips_lock:
-        _session_ips[request.sid] = _client_ip()
 
 
 @socketio.on("disconnect")
 def _on_disconnect():
     with _sessions_lock:
         _sessions.pop(request.sid, None)
-    with _last_frames_lock:
-        _last_frames.pop(request.sid, None)
-    with _session_ips_lock:
-        _session_ips.pop(request.sid, None)
 
 
 @socketio.on("ping_test")
@@ -667,23 +519,6 @@ def handle_frame(image_bytes, flags=None):
     """
     if not image_bytes:
         return _EMPTY
-    # Cache de la dernière frame brute pour la vue debug /webcam. On le fait
-    # avant tout traitement pour rester visible même si l'inférence échoue.
-    # Wrappé en try/except : le cache /webcam est purement debug, il ne doit
-    # JAMAIS empêcher la traduction de se faire. Avant ce fix un bytes(image)
-    # qui crashait remontait l'exception jusqu'au handler -> pas d'ack envoyé
-    # au client -> plus aucune lettre/sign retournée -> "ça traduit plus rien".
-    try:
-        if isinstance(image_bytes, (bytes, bytearray, memoryview)):
-            cached = bytes(image_bytes)
-        else:
-            cached = None
-        if cached is not None:
-            with _last_frames_lock:
-                _last_frames[request.sid] = (time.time(), cached)
-    except Exception as exc:
-        _log.debug("webcam cache skipped: %s", exc)
-
     data = _run_frame(image_bytes)
     if data is None:
         return _EMPTY
@@ -704,45 +539,6 @@ def handle_frame(image_bytes, flags=None):
         update_buffer=update_sign_buffer,
         reset_buffer=reset_sign_buffer,
     )
-
-    # ── Hall of fame : capture une seule fois par session ──
-    # Deux triggers, whichever fires first :
-    #   A) Time-based : 3s après connect (HALL_DELAY_S). Marche dans
-    #      n'importe quel mode (statique, dynamique, learn, etc.) puisqu'il
-    #      ne dépend que de l'écoulement du temps.
-    #   B) Sign-based : 2e signe DIFFÉRENT détecté avec conf >= 0.75.
-    #      Capture un moment "représentatif" en mode dynamique si l'user
-    #      signe vite avant les 3s.
-    # Une seule sauvegarde par session (flag hall_saved). Sur reconnexion
-    # de la même IP, le fichier est overwrite (mtime change).
-    try:
-        should_save = False
-        with _sessions_lock:
-            st = _sessions.get(request.sid)
-            if st is not None and not st.get("hall_saved"):
-                # Trigger A : 3 secondes écoulées
-                age = time.time() - st.get("connect_ts", time.time())
-                if age >= HALL_DELAY_S:
-                    should_save = True
-                # Trigger B : 2e signe différent
-                elif sign and (sign_conf or 0) >= MIN_HALL_SIGN_CONF \
-                        and st.get("last_sign") != sign:
-                    st["last_sign"] = sign
-                    st["sign_count"] = st.get("sign_count", 0) + 1
-                    if st["sign_count"] == 2:
-                        should_save = True
-                if should_save:
-                    st["hall_saved"] = True
-        if should_save:
-            with _session_ips_lock:
-                ip = _session_ips.get(request.sid, "unknown")
-            with _last_frames_lock:
-                cached = _last_frames.get(request.sid)
-            if cached is not None:
-                _save_hall_frame(ip, cached[1])
-                _log.info("hall_of_fame: saved %s", ip)
-    except Exception as exc:
-        _log.debug("hall_of_fame save skipped: %s", exc)
 
     return {
         "skeleton":        data.get("keypoints"),

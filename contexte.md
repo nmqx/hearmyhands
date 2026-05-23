@@ -81,7 +81,7 @@ hearmyhands-public/
 ├── hearmyhands/                   App Flask + UI
 │   ├── app.py                     Routes HTTP, handler Socket.IO frame,
 │   │                              buffer roulant GRU, leaderboard quiz,
-│   │                              hall of fame, healthz, monitor, etc.
+│   │                              healthz, monitor, etc.
 │   ├── templates/
 │   │   ├── base.html              Layout commun (navbar, thème, logo)
 │   │   ├── home.html              Hero + pitch + équipe + ODD
@@ -91,7 +91,6 @@ hearmyhands-public/
 │   │   ├── learn_library.html     /learn/library : statut des 26 lettres
 │   │   ├── learn_quiz.html        /learn/quiz : sélection mode + tops
 │   │   ├── learn_quiz_game.html   /learn/quiz/<mode> : jeu
-│   │   ├── image.html             /image : hall of fame debug (Basic Auth)
 │   │   ├── qr.html                /qr : QR vers hearmyhands.asia
 │   │   ├── monitor.html           /monitor : CPU / RAM / load
 │   │   └── videotest.html         /videotest : test rapide d'une vidéo
@@ -152,8 +151,6 @@ hearmyhands-public/
 | `/api/quiz/score` | POST | — | Submit score, validation côté serveur |
 | `/api/quiz/leaderboard/<mode>` | GET | — | Top 10 par mode (SQLite) |
 | `/qr` | GET | — | QR code grand format vers le site |
-| `/image` | GET | Basic Auth | Hall of fame debug |
-| `/api/debug/hall` | GET | Basic Auth | JSON des captures |
 | `/monitor`, `/stats` | GET | — | CPU/RAM/load |
 | `/healthz` | GET | — | État des modèles |
 | `/videotest` | GET | — | Test vidéo direct |
@@ -217,18 +214,14 @@ Soumission au serveur via `POST /api/quiz/score` avec pseudo +
 validation côté serveur (anti-abus naïf : bornes par mode, sanitization
 du pseudo). Endpoint protégé par timeout client (8 s).
 
-## Hall of fame `/image`
+## Captures debug (retirées)
 
-Pour la démo. À chaque session Socket.IO :
-- On compte les **signs différents** détectés (transition vers une
-  nouvelle lettre, conf ≥ 0.75).
-- Au **2e sign différent**, on sauvegarde la dernière frame JPEG dans
-  `static/hall_of_fame/<ip>.jpg`.
-- Une seule capture par session (flag `hall_saved`).
-- Sur reconnexion de la même IP, le fichier est overwrite.
-- Page `/image` : grille des captures triées par date.
-
-Auth Basic, password `admin`. Dossier `hall_of_fame/` gitignored.
+Les anciens endpoints `/webcam` et `/image` (qui stockaient ou affichaient
+les flux webcam des utilisateurs côté serveur) ont été **complètement
+retirés** pour des raisons d'éthique : on ne garde aucune frame en
+mémoire ni sur disque côté serveur. Le serveur reçoit la frame, fait
+l'inférence, renvoie le résultat, et c'est fini. Pas de log, pas de
+cache, pas de capture.
 
 ## Déploiement
 
@@ -254,13 +247,11 @@ jamais). Fix : `map $http_upgrade $hmh_connection_upgrade { default
 upgrade; "" close; }` puis `proxy_set_header Connection
 $hmh_connection_upgrade;`. Cf `docs/nginx-deploy-notes.md`.
 
-Cloudflare devant : règles standard, on lit la vraie IP client via
-l'en-tête `CF-Connecting-IP` (utilisée par le hall of fame).
+Cloudflare devant : règles standard.
 
 ## Outils debug intégrés
 
 - **Bouton Ping** dans `/translate` (mesure RTT live, dot coloré).
-- **`/image`** : hall of fame (password `admin`).
 - **`/monitor`** : CPU/RAM/load.
 - **`/healthz`** : JSON état des modèles.
 - **Toggle squelette** : masque le squelette custom (Modèle 1) sans
