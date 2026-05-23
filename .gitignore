@@ -47,6 +47,5 @@ Ressources/
 docs/analyse_individuelle_*.pdf
 docs/analyse_individuelle_*.tex
 
-# Hall of fame /image : captures debug de chaque IP qui s'est connectée.
-# Reste local côté VM, jamais commit.
-hearmyhands/static/hall_of_fame/
+# (anciens /webcam et /image retirés pour des raisons d'éthique — pas de
+# capture des flux utilisateurs côté serveur.)
