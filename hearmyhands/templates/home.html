@@ -96,7 +96,8 @@
             <div class="pole-card">
                 <h4><i class="fa-solid fa-eye"></i> Pôle Vision <span class="pole-tag-inline">Modèle 1</span></h4>
                 <ul class="pole-members">
-                    <li data-name="Titouan DESAILLY" class="member-pill member-resp"><strong>Titouan DESAILLY</strong> · Responsable</li>
+                    <li data-name="Dalyan PENISSON" class="member-pill member-resp"><strong>Dalyan PENISSON</strong> · Responsable</li>
+                    <li data-name="Titouan DESAILLY" class="member-pill">Titouan DESAILLY</li>
                     <li data-name="Maxime D'AURIA" class="member-pill">Maxime D'AURIA</li>
                     <li data-name="Thibault CAPDEVIELLE" class="member-pill">Thibault CAPDEVIELLE</li>
                     <li data-name="François DELAUNAY" class="member-pill">François DELAUNAY</li>
@@ -106,8 +107,7 @@
             <div class="pole-card">
                 <h4><i class="fa-solid fa-language"></i> Pôle Traduction <span class="pole-tag-inline">Modèle 2 · MLP/GRU</span></h4>
                 <ul class="pole-members">
-                    <li data-name="Killian SEVALLE" class="member-pill member-resp"><strong>Killian SEVALLE</strong> · Responsable</li>
-                    <li data-name="Dalyan PENISSON" class="member-pill member-resp"><strong>Dalyan PENISSON</strong> · Responsable</li>
+                    <li data-name="Killian SEVALLE" class="member-pill">Killian SEVALLE</li>
                     <li data-name="Nathan DIZY"     class="member-pill">Nathan DIZY</li>
                     <li data-name="Louna PEJOT"     class="member-pill">Louna PEJOT</li>
                     <li data-name="Marius DEMONFAUCON"     class="member-pill">Marius DEMONFAUCON</li>
@@ -118,7 +118,6 @@
                 <h4><i class="fa-solid fa-window-maximize"></i> Pôle Interface &amp; Backend</h4>
                 <ul class="pole-members">
                     <li data-name="Maxime D'AURIA" class="member-pill member-resp"><strong>Maxime D'AURIA</strong> · Responsable</li>
-                    <li data-name="Dalyan PENISSON" class="member-pill member-resp"><strong>Dalyan PENISSON</strong> · Responsable</li>
                     <li data-name="Kaelig LERAY"   class="member-pill">Kaelig LERAY</li>
                     <li data-name="François DELAUNAY" class="member-pill">François DELAUNAY</li>
                 </ul>
@@ -223,12 +222,12 @@
 (function () {
     const bios = {
         "Marius DEMONFAUCON":   { role: "Chef de projet · Coordination",                          bio: "Coordinateur de l'équipe de 12. Pilote le planning, anime les réunions, tranche les arbitrages techniques entre pôles et fait le lien avec la tutrice pédagogique. A aussi développé l'outil de segmentation vidéo qui alimente le dataset du GRU Ocarina." },
-        "Titouan DESAILLY":     { role: "Responsable Pôle Vision (Modèle 1)",                     bio: "Responsable du pôle Vision. Pilote l'architecture du Modèle 1 (CSPDarknet53 + heatmaps + Soft-Argmax) et le pipeline d'entraînement pour les 9 points du haut du corps." },
+        "Titouan DESAILLY":     { role: "Pôle Vision (Modèle 1)",                                 bio: "Pôle Vision : contribue à l'architecture du Modèle 1 (CSPDarknet53 + heatmaps + Soft-Argmax) et au pipeline d'entraînement pour les 9 points du haut du corps." },
         "Maxime D'AURIA":       { role: "Responsable Pôle Interface & Backend · GCP · Responsable Git · Gérant Drive", bio: "Responsable du pôle Interface & Backend. Gère l'API modèle, a aussi mis la main au front. Administre l'infrastructure Google Cloud (instance, IP statique, quotas, accès), co-responsable Git avec Thibault, et gère le Google Drive de l'équipe. Membre du pôle Vision." },
         "Thibault CAPDEVIELLE":{ role: "Pôle Vision · Responsable Git",                          bio: "Pôle Vision : travaille sur le backbone, la fonction de perte OKSLoss et la stabilisation Soft-Argmax. Responsable Git : valide les merge requests, gère les branches et l'historique du dépôt." },
         "François DELAUNAY":    { role: "Pôle Vision · Pôle Interface & Backend · Communication · Admin Discord", bio: "Multi-pôle : contribue au pôle Vision (entraînement et pré-traitement), au pôle Interface & Backend et au pôle Communication. Administre le serveur Discord de l'équipe (rôles, channels, automation)." },
-        "Killian SEVALLE":      { role: "Responsable Pôle Traduction (Ocarina)",                  bio: "Responsable du pôle Traduction. Pilote le GRU temporel Ocarina (45 frames × 42 features) pour les signes dynamiques comme J et Z." },
-        "Dalyan PENISSON":      { role: "Responsable Pôle Traduction · Responsable Pôle Interface & Backend", bio: "Co-responsable du pôle Traduction (au côté de Killian) : MLP statique 42→30→23 qui classe les lettres à partir des landmarks de main, et entraînement du GRU. Également responsable du pôle Interface & Backend au côté de Maxime." },
+        "Killian SEVALLE":      { role: "Pôle Traduction (Ocarina)",                              bio: "Pôle Traduction : contribue au GRU temporel Ocarina (45 frames × 42 features) pour les signes dynamiques comme J et Z." },
+        "Dalyan PENISSON":      { role: "Responsable Pôle Vision (Modèle 1)",                     bio: "Responsable du pôle Vision. Pilote le travail autour du Modèle 1 et du pipeline d'entraînement pour les 9 points du haut du corps." },
         "Louna PEJOT":          { role: "Responsable Communication & DA · Pôle Traduction",       bio: "Responsable du pôle Communication & Direction artistique (identité visuelle, captation des vidéos LSF pour le dataset). Contribue aussi au pôle Traduction (entraînement et validation)." },
         "Nestor CORABOEUF":     { role: "Communication & DA",                                     bio: "Pôle Communication & Direction artistique : relation associations, collecte de données vidéo. A signé la majorité des vidéos modèles utilisées dans le mode Apprentissage." },
         "Nathan DIZY":          { role: "Pôle Traduction (Modèle 2)",                             bio: "Pôle Traduction : travaille sur la chaîne d'entraînement et la préparation des datasets de classification temporelle." },
