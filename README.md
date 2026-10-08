@@ -8,7 +8,7 @@
 
 🏆 **Lauréat du Prix Entreprise, Projet 2A PeiP 2** (Polytech Nantes, 2025-2026)
 
-📄 Whitepaper technique (EN) : <https://nmqx.lol/hearmyhands_whitepaper.pdf?v=8> · Rapport complet (FR) : <https://hearmyhands.asia/rapport.pdf>
+📄 Whitepaper technique (EN) : <https://nmqx.lol/hearmyhands_whitepaper.pdf?v=9> · Rapport complet (FR) : <https://hearmyhands.asia/rapport.pdf>
 
 **Accès direct :**
 - [`/translate`](https://hearmyhands.asia/translate) — traduction LSF temps réel via la webcam
