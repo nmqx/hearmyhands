@@ -6,7 +6,7 @@
 > Traducteur de Langue des Signes Française (LSF) en temps réel via webcam.
 > Contact équipe : **hearmyhands.polytech@gmail.com**
 
-🏆 **Lauréat du Prix Entreprise — Projet 2A, PeiP 2** (Polytech Nantes, 2025-2026)
+🏆 **Lauréat du Prix Entreprise, Projet 2A PeiP 2** (Polytech Nantes, 2025-2026)
 
 📄 Whitepaper technique (EN) : <https://nmqx.lol/hearmyhands_whitepaper.pdf?v=4> · Rapport complet (FR) : <https://hearmyhands.asia/rapport.pdf>
 
