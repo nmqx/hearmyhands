@@ -6,6 +6,10 @@
 > Traducteur de Langue des Signes Française (LSF) en temps réel via webcam.
 > Contact équipe : **hearmyhands.polytech@gmail.com**
 
+🏆 **Lauréat du Prix Entreprise — Projet 2A, PeiP 2** (Polytech Nantes, 2025-2026)
+
+📄 Whitepaper technique (EN) : <https://nmqx.lol/hearmyhands_whitepaper.pdf?v=4> · Rapport complet (FR) : <https://hearmyhands.asia/rapport.pdf>
+
 **Accès direct :**
 - [`/translate`](https://hearmyhands.asia/translate) — traduction LSF temps réel via la webcam
 - [`/learn`](https://hearmyhands.asia/learn) — mode apprentissage Anki des 26 lettres
@@ -40,6 +44,12 @@ Organisée en trois pôles techniques :
 
 Le projet s'inscrit dans les Objectifs de Développement Durable de l'ONU :
 **ODD 10** (Réduction des inégalités) et **ODD 4** (Éducation de qualité).
+
+## Licence
+
+Le code est distribué sous licence [MIT](LICENSE), avec l'accord de l'ensemble de l'équipe.
+Les ressources tierces conservent leur propre licence : MediaPipe (Apache 2.0) et le dataset
+[How2Sign](https://how2sign.github.io/) (CC BY-NC 4.0, usage non commercial).
 
 ---
 
